@@ -14,3 +14,9 @@ Packages/*/.swiftpm/
 Package.resolved
 
 .DS_Store
+
+# Personal health data must never be committed
+apple_health_export/
+export.xml
+export_cda.xml
+*.healthimport
