@@ -280,6 +280,25 @@ enum Fixture {
         #expect(snapshot.score(on: tomorrow, calendar: Fixture.calendar) == nil)
     }
 
+    @Test func carriesCompactTrendsForTheWatch() throws {
+        let analysis = ReadinessEngine(calendar: Fixture.calendar).analyze(Fixture.demo(), now: Fixture.now)
+        let trends = try #require(ReadinessSnapshot(analysis: analysis).trends)
+        #expect(trends.hrv.count == 14)
+        #expect(trends.restingHeartRate.count == 14)
+        #expect(trends.hrv.last?.low != nil && trends.hrv.last?.high != nil)
+        let night = try #require(trends.lastNight)
+        #expect(!night.segments.isEmpty)
+        #expect(night.segments.allSatisfy { $0.stage != .inBed })
+        // Small enough for WatchConnectivity application context.
+        #expect(try ReadinessSnapshot(analysis: analysis).encoded().count < 20_000)
+    }
+
+    @Test func decodesSnapshotsFromBeforeTrendsExisted() throws {
+        let legacy = #"{"week":[],"generatedAt":0,"isSampleData":false}"#
+        let snapshot = try ReadinessSnapshot.decode(Data(legacy.utf8))
+        #expect(snapshot.trends == nil)
+    }
+
     @Test func roundTripsAndKeepsAWeek() throws {
         let analysis = ReadinessEngine(calendar: Fixture.calendar).analyze(Fixture.demo(), now: Fixture.now)
         let snapshot = ReadinessSnapshot(analysis: analysis, isSampleData: true)

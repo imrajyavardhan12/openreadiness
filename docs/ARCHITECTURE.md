@@ -50,6 +50,20 @@ docs/                             algorithm, research, architecture
 4. The store publishes the new `ReadinessAnalysis` and sends today's score and the last week to the watch.
 5. `HKObserverQuery` notifications (sleep, HRV, resting HR, workouts) trigger step 1 again.
 
+## The watch app
+
+The watch shows a `ReadinessSnapshot` computed on the iPhone, where months of history give the best
+baselines. Besides the score and week, the snapshot carries `Trends`: 14 days of HRV and resting
+HR (same flavour and normal range the score used) and last night's sleep segments. That's a few KB,
+well within WatchConnectivity's application-context budget, and older snapshots without it still
+decode. If the phone hasn't synced today, the watch computes the same snapshot locally from its own
+HealthKit history.
+
+The watch pages (vertical, Digital Crown) are: score, contributors (each with its working and a
+mini trend), last night (hypnogram with a labelled stage legend), HRV and resting-HR trends, and
+the week. `OpenReadinessWatchUITests` walks them all with `-demo` and screenshots each page. Layouts
+are checked on 40 mm and 49 mm screens.
+
 ## Widgets, complications and background refresh
 
 Nothing outside the main app queries HealthKit. The app computes a `ReadinessSnapshot` (today's
