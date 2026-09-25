@@ -6,12 +6,12 @@
 │  Swift Charts: trend + normal band,        fetch → analyze (off-main)    │
 │  hypnogram, load, calendar heatmap         → publish → push to watch     │
 └───────────────┬──────────────────────────────────────┬───────────────────┘
-                │ RawHealthData                         │ WatchPayload (WCSession
-┌───────────────┴───────────────┐                       │  applicationContext)
-│ ReadinessHealthKit            │               ┌───────┴────────────────────┐
-│ HealthKitDataSource           │               │ Watch app (SwiftUI)        │
-│ (read-only, async queries)    │               │ phone score, else local    │
-└───────────────┬───────────────┘               └────────────────────────────┘
+                │ RawHealthData                        │ WatchPayload (WCSession
+┌───────────────┴───────────────┐                      │ applicationContext)
+│ ReadinessHealthKit            │               ┌──────┴────────────────────┐
+│ HealthKitDataSource           │               │ Watch app (SwiftUI)       │
+│ (read-only, async queries)    │               │ phone score, else local   │
+└───────────────┬───────────────┘               └───────────────────────────┘
                 │
 ┌───────────────┴──────────────────────────────────────────────────────────┐
 │ HealthInsights (pure Swift): metric catalogue, series analytics,         │
