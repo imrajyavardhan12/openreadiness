@@ -20,7 +20,7 @@ struct OpenReadinessWatchApp: App {
 @MainActor
 @Observable
 final class WatchModel {
-    private(set) var payload: WatchPayload?
+    private(set) var payload: ReadinessSnapshot?
     private(set) var isComputingLocally = false
     private(set) var isLocal = false
 
@@ -30,9 +30,10 @@ final class WatchModel {
         WatchSync.shared.onReceive = { [weak self] payload in
             self?.payload = payload
             self?.isLocal = false
+            SnapshotPublisher.publish(payload)
         }
         WatchSync.shared.activate()
-        if payload == nil { payload = WatchSync.shared.receivedPayload }
+        if payload == nil { payload = WatchSync.shared.receivedPayload ?? SnapshotStore.load() }
 
         guard !isFromToday(payload) else { return }
         isComputingLocally = true
@@ -41,12 +42,14 @@ final class WatchModel {
         isComputingLocally = false
         // A phone payload may have arrived meanwhile; don't overwrite it.
         if !isFromToday(payload), store.analysis.today != nil {
-            payload = WatchPayload(analysis: store.analysis)
+            let snapshot = ReadinessSnapshot(analysis: store.analysis)
+            payload = snapshot
             isLocal = true
+            SnapshotPublisher.publish(snapshot)
         }
     }
 
-    private func isFromToday(_ payload: WatchPayload?) -> Bool {
+    private func isFromToday(_ payload: ReadinessSnapshot?) -> Bool {
         guard let day = payload?.today?.day else { return false }
         return Calendar.current.isDateInToday(day)
     }

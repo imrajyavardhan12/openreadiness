@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct OpenReadinessApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var store: ReadinessStore
     @State private var explorer: ExplorerStore
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
@@ -23,6 +24,7 @@ struct OpenReadinessApp: App {
                     OnboardingView {
                         await store.requestAuthorization()
                         hasCompletedOnboarding = true
+                        BackgroundRefresher.shared.start()
                     }
                 }
             }

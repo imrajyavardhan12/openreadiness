@@ -8,6 +8,10 @@ struct ScoreGauge: View {
     let category: ReadinessCategory?
     var lineWidth: CGFloat = 18
     var showsLabel = true
+    /// Show the category under the number. Small widgets turn this off and place it below instead.
+    var showsCategory = true
+    /// Widgets render one static frame and never run `onAppear`, so they must draw the final state.
+    var animated = true
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var animatedFraction: Double = 0
@@ -15,6 +19,7 @@ struct ScoreGauge: View {
     private let sweep = 0.75 // of a full circle
     private var fraction: Double { Double(score ?? 0) / 10 }
     private var tint: Color { category?.color ?? .secondary }
+    private var displayedFraction: Double { animated ? animatedFraction : fraction }
 
     var body: some View {
         ZStack {
@@ -27,13 +32,13 @@ struct ScoreGauge: View {
                 .stroke(band.color.opacity(0.18), style: StrokeStyle(lineWidth: lineWidth, lineCap: .butt))
             }
             if score != nil {
-                arc(from: 0, to: animatedFraction)
+                arc(from: 0, to: displayedFraction)
                     .stroke(
                         AngularGradient(
                             colors: [tint.opacity(0.6), tint],
                             center: .center,
                             startAngle: .degrees(135),
-                            endAngle: .degrees(135 + 360 * sweep * max(animatedFraction, 0.01))
+                            endAngle: .degrees(135 + 360 * sweep * max(displayedFraction, 0.01))
                         ),
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .round)
                     )
@@ -45,7 +50,7 @@ struct ScoreGauge: View {
                         .minimumScaleFactor(0.1)
                         .contentTransition(.numericText())
                         .foregroundStyle(tint)
-                    if let category {
+                    if showsCategory, let category {
                         Label(category.title, systemImage: category.systemImage)
                             .font(.headline)
                             .minimumScaleFactor(0.5)
@@ -57,8 +62,8 @@ struct ScoreGauge: View {
             }
         }
         .aspectRatio(1, contentMode: .fit)
-        .onAppear { animate() }
-        .onChange(of: score) { animate() }
+        .onAppear { if animated { animate() } }
+        .onChange(of: score) { if animated { animate() } }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Readiness")
         .accessibilityValue(

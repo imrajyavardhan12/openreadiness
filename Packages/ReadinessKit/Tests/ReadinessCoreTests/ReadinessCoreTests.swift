@@ -264,3 +264,25 @@ enum Fixture {
         #expect(load.last?.chronic != nil)
     }
 }
+
+// MARK: - Snapshot
+
+@Suite struct SnapshotTests {
+    @Test func staleScoreIsNeverShownAsToday() throws {
+        let analysis = ReadinessEngine(calendar: Fixture.calendar).analyze(Fixture.demo(), now: Fixture.now)
+        let snapshot = ReadinessSnapshot(analysis: analysis)
+        #expect(snapshot.score(on: Fixture.now, calendar: Fixture.calendar) != nil)
+        let tomorrow = Fixture.calendar.date(byAdding: .day, value: 1, to: Fixture.now)!
+        #expect(snapshot.score(on: tomorrow, calendar: Fixture.calendar) == nil)
+    }
+
+    @Test func roundTripsAndKeepsAWeek() throws {
+        let analysis = ReadinessEngine(calendar: Fixture.calendar).analyze(Fixture.demo(), now: Fixture.now)
+        let snapshot = ReadinessSnapshot(analysis: analysis, isSampleData: true)
+        #expect(snapshot.week.count == 7)
+        #expect(snapshot.week.last?.day == Fixture.day(0))
+        let decoded = try ReadinessSnapshot.decode(snapshot.encoded())
+        #expect(decoded == snapshot)
+        #expect(decoded.isSampleData)
+    }
+}

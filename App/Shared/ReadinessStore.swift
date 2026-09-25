@@ -108,7 +108,9 @@ final class ReadinessStore {
         lastUpdated = .now
         phase = .loaded
         #if os(iOS)
-        WatchSync.shared.send(WatchPayload(analysis: result))
+        let snapshot = ReadinessSnapshot(analysis: result, isSampleData: usesDemoData)
+        SnapshotPublisher.publish(snapshot)
+        WatchSync.shared.send(snapshot)
         #endif
     }
 

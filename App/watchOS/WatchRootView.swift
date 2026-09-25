@@ -81,7 +81,7 @@ private struct ContributorsPage: View {
 }
 
 private struct WeekPage: View {
-    let week: [WatchPayload.DayScore]
+    let week: [ReadinessSnapshot.DayScore]
 
     var body: some View {
         Chart(week, id: \.day) { day in

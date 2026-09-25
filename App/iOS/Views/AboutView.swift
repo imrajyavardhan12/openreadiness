@@ -19,6 +19,12 @@ struct AboutView: View {
                 Text("Sample data lets you explore every screen without an Apple Watch. It is generated on device and never mixed with your real data.")
             }
 
+            #if DEBUG
+            Section("Developer") {
+                NavigationLink("Widget gallery") { WidgetGalleryView() }
+            }
+            #endif
+
             Section("How the score works") {
                 NavigationLink("The method, step by step") { MethodologyView() }
                 ForEach(ContributorKind.allCases) { kind in

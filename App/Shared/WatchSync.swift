@@ -1,8 +1,9 @@
 import Foundation
 import OSLog
+import ReadinessCore
 import WatchConnectivity
 
-/// Minimal WatchConnectivity bridge: the phone pushes the latest `WatchPayload` as application
+/// Minimal WatchConnectivity bridge: the phone pushes the latest `ReadinessSnapshot` as application
 /// context (only the newest value is kept, which is exactly the semantics we want); the watch
 /// receives it. Nothing ever leaves the user's own devices.
 @MainActor
@@ -10,7 +11,7 @@ final class WatchSync: NSObject {
     static let shared = WatchSync()
 
     /// Called on the main actor whenever a payload arrives (watch side).
-    var onReceive: ((WatchPayload) -> Void)?
+    var onReceive: ((ReadinessSnapshot) -> Void)?
 
     private let logger = Logger(subsystem: "org.openreadiness", category: "WatchSync")
 
@@ -21,20 +22,20 @@ final class WatchSync: NSObject {
     }
 
     /// The last payload received, so the watch can show something before the phone next syncs.
-    var receivedPayload: WatchPayload? {
+    var receivedPayload: ReadinessSnapshot? {
         guard WCSession.isSupported(),
-              let data = WCSession.default.receivedApplicationContext[WatchPayload.contextKey] as? Data
+              let data = WCSession.default.receivedApplicationContext[ReadinessSnapshot.contextKey] as? Data
         else { return nil }
-        return try? WatchPayload.decode(data)
+        return try? ReadinessSnapshot.decode(data)
     }
 
-    func send(_ payload: WatchPayload) {
+    func send(_ payload: ReadinessSnapshot) {
         guard WCSession.isSupported(), WCSession.default.activationState == .activated else { return }
         #if os(iOS)
         guard WCSession.default.isPaired, WCSession.default.isWatchAppInstalled else { return }
         #endif
         do {
-            try WCSession.default.updateApplicationContext([WatchPayload.contextKey: payload.encoded()])
+            try WCSession.default.updateApplicationContext([ReadinessSnapshot.contextKey: payload.encoded()])
         } catch {
             logger.error("Failed to send payload to watch: \(error.localizedDescription, privacy: .public)")
         }
@@ -56,8 +57,8 @@ extension WatchSync: WCSessionDelegate {
     }
 
     private nonisolated func deliver(_ context: [String: Any]) {
-        guard let data = context[WatchPayload.contextKey] as? Data,
-              let payload = try? WatchPayload.decode(data)
+        guard let data = context[ReadinessSnapshot.contextKey] as? Data,
+              let payload = try? ReadinessSnapshot.decode(data)
         else { return }
         Task { @MainActor in self.onReceive?(payload) }
     }
