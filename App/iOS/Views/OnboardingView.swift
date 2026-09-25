@@ -5,7 +5,9 @@ struct OnboardingView: View {
     let onContinue: () async -> Void
 
     @Environment(ReadinessStore.self) private var store
+    @Environment(ImportController.self) private var importer
     @State private var isRequesting = false
+    @State private var showsImporter = false
 
     private let items: [(icon: String, title: String, detail: String)] = [
         ("waveform.path.ecg", "Heart rate variability & heart rate", "Compared with your own normal to see how recovered you are."),
@@ -77,12 +79,29 @@ struct OnboardingView: View {
                 .controlSize(.large)
                 .disabled(isRequesting)
 
-                Button("Explore with sample data") { store.usesDemoData = true }
-                    .font(.subheadline)
+                HStack(spacing: 20) {
+                    Button("Explore with sample data") { store.dataMode = .sample }
+                    Button("Import a Health export") { showsImporter = true }
+                }
+                .font(.subheadline)
+                if case .working(let message) = importer.state {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text(message).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                if case .failed(let message) = importer.state {
+                    Text(message).font(.caption).foregroundStyle(.red)
+                }
             }
             .padding(.horizontal, 24)
             .padding(.bottom, 8)
             .background(.bar)
+        }
+        .fileImporter(isPresented: $showsImporter, allowedContentTypes: [.xml]) { result in
+            if case .success(let url) = result {
+                Task { await importer.importExport(from: url) }
+            }
         }
     }
 }

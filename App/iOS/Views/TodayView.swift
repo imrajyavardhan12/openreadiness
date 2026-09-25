@@ -22,7 +22,8 @@ struct TodayView: View {
                     Button("Try Again") { Task { await store.refresh() } }
                 }
             default:
-                if store.usesDemoData { SampleDataBanner() }
+                if store.dataMode == .sample { SampleDataBanner() }
+                if store.dataMode == .imported { ImportedDataBanner(through: store.referenceDate) }
                 if let score = store.analysis.today {
                     ScoreDetailContent(score: score, analysis: store.analysis, showsWeek: true)
                 } else {
@@ -55,6 +56,25 @@ private struct SampleDataBanner: View {
             .padding(.vertical, 8)
             .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
             .padding([.horizontal, .top])
+    }
+}
+
+/// Makes it clear the screen shows an imported export, not live data.
+private struct ImportedDataBanner: View {
+    let through: Date?
+
+    var body: some View {
+        Label {
+            Text(through.map { "Imported Health export · data through \($0.formatted(date: .abbreviated, time: .omitted))" } ?? "Imported Health export")
+        } icon: {
+            Image(systemName: "tray.and.arrow.down")
+        }
+        .font(.footnote.weight(.semibold))
+        .foregroundStyle(.blue)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+        .padding([.horizontal, .top])
     }
 }
 

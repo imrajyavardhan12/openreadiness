@@ -20,36 +20,51 @@ final class ExplorerStore {
     private(set) var isLoading = false
     private(set) var hasLoaded = false
 
-    var usesDemoData: Bool {
+    var dataMode: DataMode {
         didSet {
-            guard usesDemoData != oldValue else { return }
+            guard dataMode != oldValue else { return }
             providerCache = nil
             Task { await reload() }
         }
     }
+
+    /// Supplied by the import controller when an export is loaded.
+    var importedProvider: (any HealthMetricsProvider)? {
+        didSet { if dataMode == .imported { providerCache = nil } }
+    }
+    /// For imported data, the end of the export; windows end here instead of now.
+    var referenceDate: Date?
 
     static let historyDays = 430
 
     private var providerCache: (any HealthMetricsProvider)?
     private let logger = Logger(subsystem: "org.openreadiness", category: "Explorer")
 
-    init(usesDemoData: Bool) {
-        self.usesDemoData = usesDemoData
+    init(dataMode: DataMode) {
+        self.dataMode = dataMode
     }
 
     /// Created off the main actor: the demo provider generates ~14 months of data up front.
-    private func resolveProvider() async -> any HealthMetricsProvider {
+    private func resolveProvider() async -> (any HealthMetricsProvider)? {
         if let providerCache { return providerCache }
-        let demo = usesDemoData
-        let created = await Task.detached(priority: .userInitiated) { () -> any HealthMetricsProvider in
-            demo ? DemoMetricsProvider() : HealthKitMetricsProvider()
-        }.value
+        let created: (any HealthMetricsProvider)?
+        switch dataMode {
+        case .health: created = HealthKitMetricsProvider()
+        case .sample: created = await Task.detached(priority: .userInitiated) { DemoMetricsProvider() }.value
+        case .imported: created = importedProvider
+        }
         providerCache = created
         return created
     }
 
+    /// "Today" for the explorer: the end of an imported export, otherwise now.
+    var currentDate: Date {
+        guard dataMode == .imported, let referenceDate else { return .now }
+        return min(referenceDate, .now)
+    }
+
     var window: DateInterval {
-        let end = Date.now
+        let end = currentDate
         let start = Calendar.current.date(byAdding: .day, value: -Self.historyDays, to: Calendar.current.startOfDay(for: end))!
         return DateInterval(start: start, end: end)
     }
@@ -67,7 +82,7 @@ final class ExplorerStore {
     func reload() async {
         isLoading = true
         defer { isLoading = false }
-        let provider = await resolveProvider()
+        guard let provider = await resolveProvider() else { return }
         let window = window
         let logger = logger
 
@@ -99,11 +114,13 @@ final class ExplorerStore {
     }
 
     func intraday(on day: Date) async throws -> IntradayDay {
-        try await resolveProvider().intraday(on: day)
+        guard let provider = await resolveProvider() else { throw CancellationError() }
+        return try await provider.intraday(on: day)
     }
 
     func heartRate(for workout: WorkoutSummary) async throws -> [TimedValue] {
-        try await resolveProvider().heartRateSamples(in: DateInterval(start: workout.start, end: max(workout.end, workout.start)))
+        guard let provider = await resolveProvider() else { return [] }
+        return try await provider.heartRateSamples(in: DateInterval(start: workout.start, end: max(workout.end, workout.start)))
     }
 
     /// Heart-rate zones from your resting heart rate and age-predicted maximum.
@@ -113,7 +130,7 @@ final class ExplorerStore {
     }
 
     func values(_ metric: HealthMetric, lastDays days: Int) -> [DailyValue] {
-        let cutoff = Calendar.current.date(byAdding: .day, value: -(days - 1), to: Calendar.current.startOfDay(for: .now))!
+        let cutoff = Calendar.current.date(byAdding: .day, value: -(days - 1), to: Calendar.current.startOfDay(for: currentDate))!
         return (series[metric] ?? []).filter { $0.date >= cutoff }
     }
 }

@@ -228,6 +228,9 @@ public struct InsightCandidate: Sendable, Hashable {
         InsightCandidate(.metric(.timeInDaylight), .sleepDuration, lag: 1),
         InsightCandidate(.metric(.activeEnergy), .overnightHRV, lag: 1),
         InsightCandidate(.sleepDuration, .readiness, lag: 0),
+        // Daytime signals, so people who don't wear the watch to bed still get insights.
+        InsightCandidate(.trainingLoad, .metric(.hrv), lag: 1),
+        InsightCandidate(.trainingLoad, .metric(.restingHeartRate), lag: 1),
     ]
 }
 

@@ -78,6 +78,28 @@ changed, because reloads are budgeted by the system.
   every family and state (good day, poor day, no score, dark mode). The UI test suite screenshots
   it.
 
+## Data sources
+
+`DataMode` selects one of three sources. Both stores switch together, and the UI marks which one is
+showing.
+
+| Mode | Readiness (`HealthDataSource`) | Explorer (`HealthMetricsProvider`) |
+|---|---|---|
+| `health` | `HealthKitDataSource` | `HealthKitMetricsProvider` |
+| `sample` | `DemoDataSource` | `DemoMetricsProvider` |
+| `imported` | `ImportedDataSource` | `ImportedMetricsProvider` |
+
+**Import** (`AppleHealthImport`, driven by `ImportController`):
+- `export.xml` is streamed once and saved as a binary property list (about 1.5% of the XML's size)
+  with file protection. Later launches decode it in well under a second.
+- In imported mode, scoring treats the end of the export as "now". Nothing is published to widgets
+  or the watch, which keep live data.
+- Exports aren't de-duplicated, so cumulative totals take the largest single source per day or hour.
+
+**Heart-rate averages** are time-weighted in every mode: hourly means first, then the daily mean
+(`SeriesAnalytics.dailyFromHourly`). The watch samples every few seconds during workouts, so a plain
+sample mean would mostly describe workouts.
+
 ## The explorer
 
 `ExplorerStore` loads all 21 metrics concurrently, one `HKStatisticsCollectionQuery` each over

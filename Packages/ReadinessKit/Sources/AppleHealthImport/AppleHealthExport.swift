@@ -8,6 +8,10 @@ public struct ImportedHealthData: Sendable, Codable {
     public var daily: [HealthMetric: [DailyValue]]
     public var workouts: [WorkoutSummary]
     public var rings: [ActivityRingDay]
+    /// Every heart-rate sample, for the day timeline and workout zone charts.
+    public var heartRateSamples: [TimedValue]
+    /// Steps per hour (largest single source per hour), for the day timeline.
+    public var hourlySteps: [TimedValue]
     /// When the user exported the data, if recorded in the file.
     public var exportDate: Date?
     /// Earliest and latest sample seen.
@@ -15,12 +19,15 @@ public struct ImportedHealthData: Sendable, Codable {
 
     public init(
         raw: RawHealthData, daily: [HealthMetric: [DailyValue]], workouts: [WorkoutSummary],
-        rings: [ActivityRingDay], exportDate: Date?, coverage: DateInterval?
+        rings: [ActivityRingDay], heartRateSamples: [TimedValue] = [], hourlySteps: [TimedValue] = [],
+        exportDate: Date?, coverage: DateInterval?
     ) {
         self.raw = raw
         self.daily = daily
         self.workouts = workouts
         self.rings = rings
+        self.heartRateSamples = heartRateSamples
+        self.hourlySteps = hourlySteps
         self.exportDate = exportDate
         self.coverage = coverage
     }
@@ -223,6 +230,8 @@ final class ExportParserDelegate: NSObject, XMLParserDelegate {
     private var temperature: [TimedValue] = []
     private var oxygen: [TimedValue] = []
     private var heartRateBuckets: [Int: (sum: Double, count: Int)] = [:]
+    private var heartRateSamples: [TimedValue] = []
+    private var hourlySteps: [Int: [String: Double]] = [:]
     private var efforts: [(date: Date, value: Double, estimated: Bool)] = []
     private var age: Int?
     private var exportDate: Date?
@@ -330,6 +339,10 @@ final class ExportParserDelegate: NSObject, XMLParserDelegate {
             let bucket = Int((start.timeIntervalSince1970 / 1800).rounded(.down))
             let current = heartRateBuckets[bucket] ?? (0, 0)
             heartRateBuckets[bucket] = (current.sum + normalized, current.count + 1)
+            heartRateSamples.append(TimedValue(date: start, value: normalized))
+        case .steps:
+            let hour = Int((start.timeIntervalSince1970 / 3600).rounded(.down))
+            hourlySteps[hour, default: [:]][source, default: 0] += normalized
         case .restingHeartRate: resting.append(TimedValue(date: start, value: normalized))
         case .respiratoryRate: respiratory.append(TimedValue(date: start, value: normalized))
         case .wristTemperature: temperature.append(TimedValue(date: start, value: normalized))
@@ -419,11 +432,25 @@ final class ExportParserDelegate: NSObject, XMLParserDelegate {
         }
 
         var daily: [HealthMetric: [DailyValue]] = [:]
-        for (metric, days) in discrete {
+        for (metric, days) in discrete where metric.aggregation != .range {
             daily[metric] = days.map { day, v in
                 DailyValue(date: day, value: v.sum / Double(v.count), min: metric.aggregation == .range ? v.min : nil, max: metric.aggregation == .range ? v.max : nil)
             }
             .sorted { $0.date < $1.date }
+        }
+        // Heart rate: time-weighted from hourly buckets (see SeriesAnalytics.dailyFromHourly).
+        let hourly = Dictionary(grouping: heartRateSamples) { Int(($0.date.timeIntervalSince1970 / 3600).rounded(.down)) }
+            .map { hour, samples in
+                let values = samples.map(\.value)
+                return DailyValue(
+                    date: Date(timeIntervalSince1970: TimeInterval(hour) * 3600),
+                    value: values.reduce(0, +) / Double(values.count),
+                    min: values.min(),
+                    max: values.max()
+                )
+            }
+        if !hourly.isEmpty {
+            daily[.heartRate] = SeriesAnalytics.dailyFromHourly(hourly, calendar: calendar)
         }
         for (metric, days) in cumulative {
             // Largest single source per day, instead of double counting iPhone + Watch.
@@ -451,6 +478,10 @@ final class ExportParserDelegate: NSObject, XMLParserDelegate {
             daily: daily,
             workouts: scoredWorkouts.map(\.1).sorted { $0.start > $1.start },
             rings: rings.sorted { $0.date < $1.date },
+            heartRateSamples: heartRateSamples.sorted { $0.date < $1.date },
+            hourlySteps: hourlySteps
+                .map { TimedValue(date: Date(timeIntervalSince1970: TimeInterval($0.key) * 3600), value: $0.value.values.max() ?? 0) }
+                .sorted { $0.date < $1.date },
             exportDate: exportDate,
             coverage: earliest.flatMap { start in latest.map { DateInterval(start: start, end: max($0, start)) } }
         )

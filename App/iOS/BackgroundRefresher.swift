@@ -58,7 +58,8 @@ final class BackgroundRefresher: @unchecked Sendable {
 
     private func refreshIfBackgrounded() async {
         let isActive = await MainActor.run { UIApplication.shared.applicationState == .active }
-        guard !isActive, !UserDefaults.standard.bool(forKey: "usesDemoData") else { return }
+        let mode = UserDefaults.standard.string(forKey: ReadinessStore.Keys.dataMode) ?? DataMode.health.rawValue
+        guard !isActive, mode == DataMode.health.rawValue else { return }
         await recompute()
     }
 

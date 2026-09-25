@@ -42,6 +42,8 @@ targets:
         product: ReadinessHealthKit
       - package: ReadinessKit
         product: HealthInsights
+      - package: ReadinessKit
+        product: AppleHealthImport
       - target: OpenReadinessWatch
       - target: OpenReadinessWidgets
     entitlements:
