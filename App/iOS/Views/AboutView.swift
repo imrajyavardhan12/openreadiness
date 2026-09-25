@@ -53,7 +53,17 @@ struct AboutView: View {
             }
 
             Section {
-                Label("Open source under the MIT License", systemImage: "chevron.left.forwardslash.chevron.right")
+                Link(destination: AppLinks.repository) {
+                    Label("Source code on GitHub", systemImage: "chevron.left.forwardslash.chevron.right")
+                }
+                Link(destination: AppLinks.issues) {
+                    Label("Report a problem or suggest an idea", systemImage: "exclamationmark.bubble")
+                }
+                Link(destination: AppLinks.algorithm) {
+                    Label("Full algorithm documentation", systemImage: "doc.text.magnifyingglass")
+                }
+            } header: {
+                Text("Open source · MIT License")
             } footer: {
                 Text("OpenReadiness is not a medical device and is not affiliated with Apple. Readiness can't account for existing conditions or medications and shouldn't be the only thing you rely on when deciding whether it is safe to exercise.")
             }
@@ -104,4 +114,10 @@ struct MethodologyView: View {
         }
         .accessibilityElement(children: .combine)
     }
+}
+
+enum AppLinks {
+    static let repository = URL(string: "https://github.com/imrajyavardhan12/openreadiness")!
+    static let issues = URL(string: "https://github.com/imrajyavardhan12/openreadiness/issues")!
+    static let algorithm = URL(string: "https://github.com/imrajyavardhan12/openreadiness/blob/main/docs/ALGORITHM.md")!
 }
