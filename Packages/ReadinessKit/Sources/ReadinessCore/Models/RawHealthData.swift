@@ -107,6 +107,8 @@ public struct RawHealthData: Sendable, Hashable, Codable {
     public var sleep: [SleepSegment]
     /// SDNN in milliseconds, one entry per Apple Watch HRV reading.
     public var hrv: [TimedValue]
+    /// RMSSD in milliseconds, computed from the beat-to-beat series behind each HRV reading.
+    public var rmssd: [TimedValue]
     /// Average heart rate per fixed bucket (30 min by default); bucket start as the date.
     public var heartRateBuckets: [TimedValue]
     /// Apple's daily resting heart rate estimate (bpm).
@@ -125,6 +127,7 @@ public struct RawHealthData: Sendable, Hashable, Codable {
     public init(
         sleep: [SleepSegment] = [],
         hrv: [TimedValue] = [],
+        rmssd: [TimedValue] = [],
         heartRateBuckets: [TimedValue] = [],
         restingHeartRate: [TimedValue] = [],
         respiratoryRate: [TimedValue] = [],
@@ -136,6 +139,7 @@ public struct RawHealthData: Sendable, Hashable, Codable {
     ) {
         self.sleep = sleep
         self.hrv = hrv
+        self.rmssd = rmssd
         self.heartRateBuckets = heartRateBuckets
         self.restingHeartRate = restingHeartRate
         self.respiratoryRate = respiratoryRate

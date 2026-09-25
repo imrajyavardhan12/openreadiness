@@ -85,7 +85,7 @@ struct MethodologyView: View {
                 step(1, "Build your personal normal",
                      "For each signal, the previous 60 days form your baseline, using the median and a robust spread (median absolute deviation) so a few odd nights don't distort it. At least 7 nights are needed; until then the score is marked Calibrating.")
                 step(2, "Compare last night with your normal",
-                     "HRV is compared on a log scale (it naturally varies multiplicatively) and blended 70/30 with its 7-day trend. Resting heart rate is your lowest 30-minute average while asleep; lower than usual is better. Each difference becomes a z-score: how many 'normal days' away from typical you are.")
+                     "HRV is RMSSD computed from your watch's beat-to-beat data (Apple's SDNN is the fallback), compared on a log scale (it naturally varies multiplicatively) and blended 70/30 with its 7-day trend. Resting heart rate is your lowest 30-minute average while asleep; lower than usual is better. Each difference becomes a z-score: how many 'normal days' away from typical you are.")
                 step(3, "Turn each signal into a 0–100 sub-score",
                      "A smooth curve maps z-scores so that exactly your normal scores 70. Sleep uses a 0–100 sleep score (duration 50, bedtime consistency 30, interruptions 20) plus sleep debt. Training load compares your last 7 days with the 3 weeks before (acute:chronic ratio). Vitals flag respiratory rate, wrist temperature or blood oxygen outside your range.")
                 step(4, "Weight and combine",

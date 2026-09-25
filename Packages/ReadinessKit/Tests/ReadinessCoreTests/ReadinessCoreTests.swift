@@ -247,7 +247,11 @@ enum Fixture {
         func todayHRVSubscore(multiplier: Double) throws -> Double {
             var raw = Fixture.demo()
             let cutoff = Fixture.time(-1, 18)
-            raw.hrv = raw.hrv.map { $0.date >= cutoff ? TimedValue(date: $0.date, value: $0.value * multiplier) : $0 }
+            let scale = { (sample: TimedValue) in
+                sample.date >= cutoff ? TimedValue(date: sample.date, value: sample.value * multiplier) : sample
+            }
+            raw.hrv = raw.hrv.map(scale)
+            raw.rmssd = raw.rmssd.map(scale)
             return try #require(engine.analyze(raw, now: Fixture.now).today?.contributor(.hrv)).subscore
         }
         #expect(try todayHRVSubscore(multiplier: 1.4) > todayHRVSubscore(multiplier: 1.0))
@@ -284,5 +288,60 @@ enum Fixture {
         let decoded = try ReadinessSnapshot.decode(snapshot.encoded())
         #expect(decoded == snapshot)
         #expect(decoded.isSampleData)
+    }
+}
+
+// MARK: - RMSSD
+
+@Suite struct RMSSDTests {
+    /// Beats at the given RR intervals (ms), starting at t = 0.
+    func beats(_ intervals: [Double], gapBefore: Set<Int> = []) -> [Heartbeat] {
+        var t = 0.0
+        var result = [Heartbeat(time: 0)]
+        for (index, rr) in intervals.enumerated() {
+            t += rr / 1000
+            result.append(Heartbeat(time: t, precededByGap: gapBefore.contains(index + 1)))
+        }
+        return result
+    }
+
+    @Test func alternatingIntervalsGiveTheirDifference() throws {
+        // RR alternates 800/850 ms → every successive difference is ±50 ms → RMSSD = 50.
+        let rr = (0..<40).map { $0.isMultiple(of: 2) ? 800.0 : 850.0 }
+        #expect(abs(try #require(RMSSD.compute(beats(rr))) - 50) < 1e-6)
+    }
+
+    @Test func constantRhythmHasZeroVariability() throws {
+        #expect(try #require(RMSSD.compute(beats(Array(repeating: 1000, count: 30)))) == 0)
+    }
+
+    @Test func ectopicBeatsAndImplausibleIntervalsAreRejected() throws {
+        var rr = (0..<40).map { $0.isMultiple(of: 2) ? 800.0 : 850.0 }
+        rr[10] = 400   // premature beat: >20% jump either side
+        rr[20] = 2500  // missed beat: implausible interval
+        #expect(abs(try #require(RMSSD.compute(beats(rr))) - 50) < 1e-6)
+    }
+
+    @Test func gapsBreakTheSequence() throws {
+        // Without gap handling, the 1-second jump across the gap would dominate.
+        let rr = (0..<40).map { $0.isMultiple(of: 2) ? 800.0 : 850.0 }
+        let withGap = beats(rr, gapBefore: [15])
+        #expect(abs(try #require(RMSSD.compute(withGap)) - 50) < 1e-6)
+    }
+
+    @Test func tooFewCleanBeatsReturnsNil() {
+        #expect(RMSSD.compute(beats([800, 850, 800, 850])) == nil)
+        #expect(RMSSD.compute([]) == nil)
+    }
+
+    @Test func scorerPrefersRMSSDOnceItHasABaseline() throws {
+        let engine = ReadinessEngine(calendar: Fixture.calendar)
+        let withRMSSD = try #require(engine.analyze(Fixture.demo(), now: Fixture.now).today?.contributor(.hrv))
+        #expect(withRMSSD.components.first?.label.contains("RMSSD") == true)
+
+        var sdnnOnly = Fixture.demo()
+        sdnnOnly.rmssd = []
+        let fallback = try #require(engine.analyze(sdnnOnly, now: Fixture.now).today?.contributor(.hrv))
+        #expect(fallback.components.first?.label.contains("SDNN") == true)
     }
 }
