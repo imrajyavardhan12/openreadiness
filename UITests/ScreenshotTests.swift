@@ -74,6 +74,17 @@ final class ScreenshotTests: XCTestCase {
         snap("32-insights-explorer")
     }
 
+    func testWidgetGallery() throws {
+        app.tabBars.buttons["About"].tap()
+        let gallery = app.buttons["Widget gallery"]
+        XCTAssertTrue(gallery.waitForExistence(timeout: 10))
+        gallery.tap()
+        settle()
+        snap("40-widgets")
+        app.swipeUp()
+        snap("41-widgets-lock-screen")
+    }
+
     // MARK: - Helpers
 
     private func open(_ label: String, name: String, scrolls: Int) {

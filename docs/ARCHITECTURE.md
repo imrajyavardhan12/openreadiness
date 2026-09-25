@@ -1,30 +1,8 @@
 # Architecture
 
-```
-┌────────────────────────── iPhone app (SwiftUI) ──────────────────────────┐
-│  Today · Trends · History · About          ReadinessStore (@Observable)  │
-│  Swift Charts: trend + normal band,        fetch → analyze (off-main)    │
-│  hypnogram, load, calendar heatmap         → publish → push to watch     │
-└───────────────┬──────────────────────────────────────┬───────────────────┘
-                │ RawHealthData                        │ WatchPayload (WCSession
-┌───────────────┴───────────────┐                      │ applicationContext)
-│ ReadinessHealthKit            │               ┌──────┴────────────────────┐
-│ HealthKitDataSource           │               │ Watch app (SwiftUI)       │
-│ (read-only, async queries)    │               │ phone score, else local   │
-└───────────────┬───────────────┘               └───────────────────────────┘
-                │
-┌───────────────┴──────────────────────────────────────────────────────────┐
-│ HealthInsights (pure Swift): metric catalogue, series analytics,         │
-│  normal bands, period comparison, streaks, histograms, Spearman          │
-│  correlation + curated insights, sleep schedule, heart-rate zones        │
-├──────────────────────────────────────────────────────────────────────────┤
-│ ReadinessCore (pure Swift, no HealthKit/UI, unit-tested on macOS)        │
-│  Models: RawHealthData → DayMetrics → Contributor → ReadinessScore       │
-│  Analysis: SleepAnalyzer, DayMetricsBuilder, WorkoutLoadModel, Stats     │
-│  Scoring: contributor scorers, SleepScorer, ReadinessEngine, trends      │
-│  Demo: deterministic synthetic data (Simulator, previews, tests)         │
-└──────────────────────────────────────────────────────────────────────────┘
-```
+![OpenReadiness architecture: HealthKit feeds the ReadinessKit package (adapters, ReadinessCore, HealthInsights); the iPhone app publishes a snapshot to an App Group read by widgets and sends it to the watch; background delivery refreshes the snapshot while the app is closed.](diagrams/architecture.png)
+
+<sub>Source: [`diagrams/architecture.html`](diagrams/architecture.html) (editable SVG, also exported as [`.svg`](diagrams/architecture.svg)).</sub>
 
 ## Principles
 
@@ -52,7 +30,11 @@ Packages/ReadinessKit/           Swift package
   Sources/HealthInsights/         explorer analytics & insights (no platform dependencies)
   Sources/ReadinessHealthKit/     HealthKit adapters (readiness + explorer)
   Tests/ReadinessCoreTests/       Swift Testing suite
-App/Shared/                       store, gauge, theme, watch sync (both apps)
+App/Shared/                       store and watch sync (both apps)
+App/SharedKit/                    theme, gauge, snapshot storage (apps + widget extensions)
+App/WidgetShared/                 widget timeline provider + views (both widget extensions)
+App/Widgets/                      iPhone widget extension
+App/WatchWidgets/                 watch complication extension
 App/iOS/                          iPhone app: views + charts
 App/watchOS/                      watch app
 project.yml                       XcodeGen spec (the .xcodeproj is generated)
@@ -67,6 +49,34 @@ docs/                             algorithm, research, architecture
    using only data before that day.
 4. The store publishes the new `ReadinessAnalysis` and sends today's score and the last week to the watch.
 5. `HKObserverQuery` notifications (sleep, HRV, resting HR, workouts) trigger step 1 again.
+
+## Widgets, complications and background refresh
+
+Nothing outside the main app queries HealthKit. The app computes a `ReadinessSnapshot` (today's
+score, its contributors and the last 7 days) and `SnapshotPublisher` writes it to the App Group
+`group.org.openreadiness`. It then asks WidgetKit to reload, but only when the score actually
+changed, because reloads are budgeted by the system.
+
+- **iPhone widgets** (`App/Widgets`): small and medium Home Screen widgets, plus circular,
+  rectangular and inline Lock Screen accessories.
+- **Watch complications** (`App/WatchWidgets`): circular, rectangular, corner and inline. The watch
+  writes its own snapshot, received from the phone or computed locally, into its own App Group
+  container.
+- **Staleness:** each timeline has a second entry at midnight. `ReadinessSnapshot.score(on:)`
+  returns nil once the day is over, so a widget shows "–" rather than yesterday's number.
+- **Background delivery** (`BackgroundRefresher`): observer queries on sleep, HRV, resting heart
+  rate and workouts, with `enableBackgroundDelivery(… .hourly)`. They are registered at every
+  launch from the app delegate, which iOS requires for delivery to a terminated app. The score is
+  recomputed headlessly (60-day lookback, 7 scored days) and published, and the handler always
+  calls HealthKit's completion block. Health data is encrypted while the phone is locked, so a
+  delivery at night may find it unreadable (`errorDatabaseInaccessible`). That case is logged, and
+  the next delivery after unlock catches up. While the app is in the foreground, `ReadinessStore`
+  does the work instead.
+- **Code sharing:** `App/SharedKit` (theme, gauge, snapshot storage) and `App/WidgetShared`
+  (provider and views) compile into the extensions. HealthKit and WatchConnectivity code never do.
+- **Reviewing widget UI:** debug builds add *About › Developer › Widget gallery*, which renders
+  every family and state (good day, poor day, no score, dark mode). The UI test suite screenshots
+  it.
 
 ## The explorer
 

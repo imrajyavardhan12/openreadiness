@@ -33,6 +33,8 @@ targets:
     sources:
       - App/iOS
       - App/Shared
+      - App/SharedKit
+      - App/WidgetShared
     dependencies:
       - package: ReadinessKit
         product: ReadinessCore
@@ -41,11 +43,15 @@ targets:
       - package: ReadinessKit
         product: HealthInsights
       - target: OpenReadinessWatch
+      - target: OpenReadinessWidgets
     entitlements:
       path: App/iOS/OpenReadiness.entitlements
       properties:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
+        com.apple.developer.healthkit.background-delivery: true
+        com.apple.security.application-groups:
+          - group.org.openreadiness
     info:
       path: App/iOS/Info.plist
       properties:
@@ -85,16 +91,20 @@ targets:
     sources:
       - App/watchOS
       - App/Shared
+      - App/SharedKit
     dependencies:
       - package: ReadinessKit
         product: ReadinessCore
       - package: ReadinessKit
         product: ReadinessHealthKit
+      - target: OpenReadinessWatchWidgets
     entitlements:
       path: App/watchOS/OpenReadinessWatch.entitlements
       properties:
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access: []
+        com.apple.security.application-groups:
+          - group.org.openreadiness
     info:
       path: App/watchOS/Info.plist
       properties:
@@ -109,6 +119,59 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.openreadiness.app.watchkitapp
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+
+  # Home-screen and lock-screen widgets. Reads only the App Group snapshot; no HealthKit.
+  OpenReadinessWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - App/Widgets
+      - App/WidgetShared
+      - App/SharedKit
+    dependencies:
+      - package: ReadinessKit
+        product: ReadinessCore
+    entitlements:
+      path: App/Widgets/OpenReadinessWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.org.openreadiness
+    info:
+      path: App/Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: OpenReadiness
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.openreadiness.app.widgets
+        TARGETED_DEVICE_FAMILY: "1,2"
+
+  # Watch-face complications (WidgetKit).
+  OpenReadinessWatchWidgets:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - App/WatchWidgets
+      - App/WidgetShared
+      - App/SharedKit
+    dependencies:
+      - package: ReadinessKit
+        product: ReadinessCore
+    entitlements:
+      path: App/WatchWidgets/OpenReadinessWatchWidgets.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.org.openreadiness
+    info:
+      path: App/WatchWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: OpenReadiness
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.openreadiness.app.watchkitapp.widgets
 
   OpenReadinessUITests:
     type: bundle.ui-testing

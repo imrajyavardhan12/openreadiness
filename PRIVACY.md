@@ -11,9 +11,11 @@ OpenReadiness is built so that your health data never leaves your devices.
 - **On-device computation.** All scoring runs locally on your iPhone (or Apple Watch).
 - **No network.** No servers, accounts, analytics, crash reporting, ads or third-party SDKs. The app
   makes no network requests.
-- **No storage of health data.** Data is read from HealthKit into memory each time the app refreshes
-  and is never written to disk. The only persisted values are two preferences: your sleep goal and
-  whether sample data is on.
+- **Minimal storage.** Raw health data is read from HealthKit into memory each time the app
+  refreshes and is never written to disk. What is stored: two preferences (your sleep goal and
+  whether sample data is on) and, for widgets and complications, today's score summary. That
+  summary is the score, its contributor headlines and the last 7 scores. It lives in the app's
+  private App Group container on your device, readable only by OpenReadiness and its own widgets.
 - **Watch sync.** The iPhone sends today's score, its contributors and the last 7 scores to your own
   paired Apple Watch through Apple's WatchConnectivity framework.
 - **Control.** Change or revoke access at any time in *Settings › Health › Data Access & Devices ›

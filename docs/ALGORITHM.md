@@ -4,6 +4,8 @@ This document explains every step of the readiness score, the reasoning behind e
 where it lives in code. All tunable numbers are in
 [`ReadinessConfiguration.swift`](../Packages/ReadinessKit/Sources/ReadinessCore/Scoring/ReadinessConfiguration.swift).
 
+![Readiness scoring pipeline: HealthKit samples → daily metrics → 60-day personal baselines → five sub-scores → weighted mean → limiting-factor check (cap if any body signal is below 30) → 0–10 score and band.](diagrams/scoring-pipeline.png)
+
 > **Goal:** a score that is *transparent* (every point is attributable), *personal* (compared with
 > your own history, not population norms) and *robust* (a single glitchy night can't swing it).
 
