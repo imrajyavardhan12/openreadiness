@@ -345,3 +345,32 @@ enum Fixture {
         #expect(fallback.components.first?.label.contains("SDNN") == true)
     }
 }
+
+// MARK: - Export
+
+@Suite struct ExportTests {
+    @Test func escapesPerRFC4180() {
+        #expect(CSVWriter.escape("plain") == "plain")
+        #expect(CSVWriter.escape("a,b") == "\"a,b\"")
+        #expect(CSVWriter.escape("say \"hi\"") == "\"say \"\"hi\"\"\"")
+        #expect(CSVWriter.escape("two\nlines") == "\"two\nlines\"")
+    }
+
+    @Test func numbersIgnoreDeviceLocale() {
+        #expect(CSVWriter.number(1234.567) == "1234.57")
+        #expect(CSVWriter.number(nil) == "")
+        #expect(CSVWriter.number(.nan) == "")
+    }
+
+    @Test func readinessCSVHasOneRowPerDayAndMatchingColumns() throws {
+        let analysis = ReadinessEngine(calendar: Fixture.calendar).analyze(Fixture.demo(), now: Fixture.now)
+        let csv = ReadinessExport.csv(analysis, calendar: Fixture.calendar)
+        let lines = csv.components(separatedBy: "\r\n").filter { !$0.isEmpty }
+        #expect(lines.count == analysis.days.count + 1)
+        let columns = lines[0].components(separatedBy: ",").count
+        #expect(lines.allSatisfy { $0.components(separatedBy: ",").count == columns })
+        let last = lines.last!.components(separatedBy: ",")
+        #expect(last[0] == "2026-09-25")
+        #expect(Int(last[1]) == analysis.today?.score)
+    }
+}

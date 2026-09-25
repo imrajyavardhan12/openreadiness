@@ -4,6 +4,7 @@ import SwiftUI
 /// Settings, the full method in plain language, and privacy.
 struct AboutView: View {
     @Environment(ReadinessStore.self) private var store
+    @Environment(ExplorerStore.self) private var explorer
 
     var body: some View {
         @Bindable var store = store
@@ -24,6 +25,27 @@ struct AboutView: View {
                 NavigationLink("Widget gallery") { WidgetGalleryView() }
             }
             #endif
+
+            Section {
+                ShareLink(
+                    item: CSVExport(content: .readiness(store.analysis)),
+                    preview: SharePreview("Readiness history (CSV)")
+                ) {
+                    Label("Export readiness history", systemImage: "square.and.arrow.up")
+                }
+                .disabled(store.analysis.days.isEmpty)
+                ShareLink(
+                    item: CSVExport(content: .metrics(explorer.series)),
+                    preview: SharePreview("Daily health metrics (CSV)")
+                ) {
+                    Label("Export daily health metrics", systemImage: "tablecells")
+                }
+                .disabled(!explorer.hasLoaded)
+            } header: {
+                Text("Your data")
+            } footer: {
+                Text("CSV files for spreadsheets or your own analysis: every daily score, contributor and input, and every metric the Health tab shows. They're created only when you tap, and go only where you choose to send them.")
+            }
 
             Section("How the score works") {
                 NavigationLink("The method, step by step") { MethodologyView() }

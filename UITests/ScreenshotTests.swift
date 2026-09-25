@@ -85,6 +85,22 @@ final class ScreenshotTests: XCTestCase {
         snap("41-widgets-lock-screen")
     }
 
+    func testCSVExportOpensShareSheet() throws {
+        // Load the Health tab first so both exports are enabled.
+        app.tabBars.buttons["Health"].tap()
+        XCTAssertTrue(button(containing: "Activity Rings").waitForExistence(timeout: 30))
+        app.tabBars.buttons["About"].tap()
+        let export = app.buttons["Export readiness history"]
+        XCTAssertTrue(export.waitForExistence(timeout: 10))
+        snap("50-about-export")
+        export.tap()
+        // The share sheet shows the file name of the CSV it was handed.
+        let sheet = app.otherElements["ActivityListView"]
+        XCTAssertTrue(sheet.waitForExistence(timeout: 15) || app.staticTexts.containing(NSPredicate(format: "label CONTAINS 'csv'")).firstMatch.exists)
+        settle(1.5)
+        snap("51-share-sheet")
+    }
+
     // MARK: - Helpers
 
     private func open(_ label: String, name: String, scrolls: Int) {
