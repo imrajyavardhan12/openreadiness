@@ -19,6 +19,9 @@ OpenReadiness is built so that your health data never leaves your devices.
   There is also a cache of the HRV (RMSSD) values computed from each overnight heartbeat recording:
   derived numbers only, never raw heartbeats. It is kept in the app's private container with iOS
   file protection and pruned after 200 days.
+- **Export is yours to trigger.** "Export readiness history" and "Export daily health metrics"
+  create CSV files only when you tap them, and hand them to the system share sheet. They go only
+  where you send them.
 - **Watch sync.** The iPhone sends today's score, its contributors and the last 7 scores to your own
   paired Apple Watch through Apple's WatchConnectivity framework.
 - **Control.** Change or revoke access at any time in *Settings › Health › Data Access & Devices ›

@@ -137,7 +137,7 @@ Oura, Whoop and Garmin is in [docs/RESEARCH.md](docs/RESEARCH.md).
 - [ ] Menstrual-cycle-aware temperature and resting-HR baselines
 - [ ] Localisation (String Catalogs are enabled)
 - [ ] Optional subjective check-in (energy/soreness) to validate and tune the weights
-- [ ] CSV export of daily metrics and scores
+- [x] CSV export of daily scores, contributors, inputs and all explorer metrics
 
 ## Privacy
 

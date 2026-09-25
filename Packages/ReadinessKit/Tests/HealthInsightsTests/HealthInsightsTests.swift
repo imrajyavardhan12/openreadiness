@@ -201,3 +201,20 @@ enum Fixture {
         #expect(samples.count > 100)
     }
 }
+
+@Suite struct MetricsExportTests {
+    @Test func wideTableWithRangeColumns() async throws {
+        let provider = DemoMetricsProvider(calendar: Fixture.calendar, now: Fixture.now)
+        let window = DateInterval(start: Fixture.day(-29), end: Fixture.now)
+        var series: [HealthMetric: [DailyValue]] = [:]
+        for metric in [HealthMetric.steps, .heartRate, .vo2Max] {
+            series[metric] = try await provider.daily(metric, in: window)
+        }
+        let csv = MetricsExport.csv(series, calendar: Fixture.calendar)
+        let lines = csv.components(separatedBy: "\r\n").filter { !$0.isEmpty }
+        #expect(lines[0] == "date,heartRate_bpm,heartRate_bpm_min,heartRate_bpm_max,vo2Max_ml_kg_min,steps_steps")
+        #expect(lines.count == 31) // header + 30 days
+        let columns = 6
+        #expect(lines.allSatisfy { $0.components(separatedBy: ",").count == columns })
+    }
+}
