@@ -121,6 +121,9 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: org.openreadiness.app.watchkitapp
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    scheme:
+      testTargets:
+        - OpenReadinessWatchUITests
 
   # Home-screen and lock-screen widgets. Reads only the App Group snapshot; no HealthKit.
   OpenReadinessWidgets:
@@ -185,4 +188,16 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.openreadiness.app.uitests
+        GENERATE_INFOPLIST_FILE: YES
+
+  OpenReadinessWatchUITests:
+    type: bundle.ui-testing
+    platform: watchOS
+    sources:
+      - WatchUITests
+    dependencies:
+      - target: OpenReadinessWatch
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.openreadiness.app.watchkitapp.uitests
         GENERATE_INFOPLIST_FILE: YES

@@ -15,7 +15,7 @@ struct OpenReadinessWatchApp: App {
     }
 }
 
-/// Prefers today's score from the iPhone (months of baseline history). If the phone hasn't
+/// Prefers today's snapshot from the iPhone (months of baseline history). If the phone hasn't
 /// synced today, scores locally from the watch's own, shorter HealthKit history.
 @MainActor
 @Observable
@@ -24,9 +24,24 @@ final class WatchModel {
     private(set) var isComputingLocally = false
     private(set) var isLocal = false
 
-    private let store = ReadinessStore(historyDays: 7)
+    /// `-demo` shows sample data (Simulator, screenshots, UI tests) without HealthKit or a phone.
+    let isDemo = ProcessInfo.processInfo.arguments.contains("-demo")
+    private let store: ReadinessStore
+
+    init() {
+        // 14 scored days so the trend pages have two weeks of context.
+        store = ReadinessStore(historyDays: 14, forceDemo: isDemo)
+    }
 
     func start() async {
+        if isDemo {
+            isComputingLocally = true
+            await store.refresh()
+            isComputingLocally = false
+            payload = ReadinessSnapshot(analysis: store.analysis, isSampleData: true)
+            return
+        }
+
         WatchSync.shared.onReceive = { [weak self] payload in
             self?.payload = payload
             self?.isLocal = false
