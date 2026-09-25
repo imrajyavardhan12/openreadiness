@@ -52,11 +52,13 @@ enum HRVScorer {
             let week = ctx.recent(7).compactMap { $0[keyPath: metric] }
             let weekMean = week.count >= 3 ? Stats.geometricMean(week) : nil
             let zWeek = weekMean.map { baseline.zScore(log($0)) }
-            let z = zWeek.map { 0.7 * zToday + 0.3 * $0 } ?? zToday
+            let isFallback = metric == \DayMetrics.hrvAllDay
+            let reliability = isFallback ? ctx.configuration.fallbackReliability : 1
+            let z = (zWeek.map { 0.7 * zToday + 0.3 * $0 } ?? zToday) * reliability
 
             let range = NormalRange(logBaseline: baseline)
             var components = [
-                ScoreComponent(label: "Last night (\(label))", value: "\(Format.number(value)) ms"),
+                ScoreComponent(label: metric == \DayMetrics.hrvAllDay ? "Latest (\(label))" : "Last night (\(label))", value: "\(Format.number(value)) ms"),
                 ScoreComponent(
                     label: "Your normal",
                     value: "\(Format.number(range.median)) ms",
@@ -69,7 +71,10 @@ enum HRVScorer {
             components.append(ScoreComponent(
                 label: "Deviation",
                 value: "z \(Format.signed(z, digits: 1))",
-                note: zWeek == nil ? "Last night only" : "70% last night, 30% 7-day trend"
+                note: [
+                    zWeek == nil ? "Latest reading only" : "70% latest, 30% 7-day trend",
+                    isFallback ? "×\(Format.number(reliability, digits: 2)) daytime reliability" : nil,
+                ].compactMap { $0 }.joined(separator: " · ")
             ))
 
             return Contributor(
@@ -102,8 +107,10 @@ enum RestingHeartRateScorer {
                   let baseline = ctx.baseline(metric, minimumSpread: minimumSpread)
             else { continue }
 
-            // Lower than usual is good, so invert.
-            let z = -baseline.zScore(value)
+            // Lower than usual is good, so invert. Apple's daytime estimate is less reliable than sleep.
+            let isFallback = metric == \DayMetrics.appleRestingHeartRate
+            let reliability = isFallback ? ctx.configuration.fallbackReliability : 1
+            let z = -baseline.zScore(value) * reliability
             let delta = value - baseline.median
             let deltaText = abs(delta) < 1
                 ? "right at your usual"
@@ -118,13 +125,21 @@ enum RestingHeartRateScorer {
                 headline: "\(Format.number(value)) bpm · \(deltaText)",
                 summaryPhrase: phrase(z: z, better: "a low resting heart rate", worse: "an elevated resting heart rate"),
                 components: [
-                    ScoreComponent(label: "Last night", value: "\(Format.number(value)) bpm", note: label.capitalizedFirst),
+                    ScoreComponent(
+                        label: metric == \DayMetrics.sleepingHeartRate ? "Last night" : "Yesterday",
+                        value: "\(Format.number(value)) bpm",
+                        note: label.capitalizedFirst
+                    ),
                     ScoreComponent(
                         label: "Your normal",
                         value: "\(Format.number(baseline.median)) bpm",
                         note: "±\(Format.number(baseline.spread, digits: 1)) bpm over \(baseline.count) days"
                     ),
-                    ScoreComponent(label: "Deviation", value: "z \(Format.signed(z, digits: 1))", note: "Positive = lower than usual"),
+                    ScoreComponent(
+                        label: "Deviation",
+                        value: "z \(Format.signed(z, digits: 1))",
+                        note: "Positive = lower than usual" + (isFallback ? " · ×\(Format.number(reliability, digits: 2)) daytime reliability" : "")
+                    ),
                 ]
             )
         }

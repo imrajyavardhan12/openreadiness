@@ -23,8 +23,9 @@ Transparency is the whole point of this project, so algorithm changes should:
 
 1. Explain the rationale in the PR, with references where possible.
 2. Update `docs/ALGORITHM.md` and, if user-visible, `MethodologyView`.
-3. Include before/after scores on the demo dataset (`DemoDataSource`) and, ideally, on your own
-   anonymised data.
+3. Include before/after results on the demo dataset (`DemoDataSource`) and, ideally, on your own
+   export via `openreadiness-cli` (score distribution and median). Share only aggregates. Never
+   commit or attach an export: it contains your complete health history.
 
 ## Privacy
 

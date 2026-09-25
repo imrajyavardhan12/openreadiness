@@ -112,6 +112,28 @@ cd Packages/ReadinessKit && swift test
 
 UI walkthrough, which also generates screenshots of every screen: press **⌘U** in Xcode.
 
+## Try the score on your own data (no developer account needed)
+
+The Health app can export everything it stores (**Health → your profile picture → Export All Health
+Data**). Unzip the export on your Mac and run:
+
+```bash
+cd Packages/ReadinessKit
+swift run -c release openreadiness-cli ~/Downloads/apple_health_export/export.xml
+```
+
+It prints what the model found (nights of sleep, HRV readings, how many had beat-to-beat data for
+RMSSD), a year of scores with their distribution, how often each contributor was available, and
+the last two weeks. Useful options:
+
+- `--explain 2026-09-18` shows the full working behind one day's score
+- `--as-of 2026-07-14` scores up to an earlier date
+- `--days 120` changes the scoring window
+- `--csv scores.csv` writes every day to a CSV
+
+Everything runs locally and nothing is uploaded. The export is streamed, so a multi-year file
+takes seconds. Keep exports out of the repository; `.gitignore` already excludes them.
+
 ## Project structure
 
 ```

@@ -118,8 +118,16 @@ comparison.
 `z = 0.7 · z(last night) + 0.3 · z(7-day geometric mean)` on the ln scale. Blending in the week
 follows Oura's "HRV balance" idea and damps single-night noise. Higher is better.
 
+**Fallback reliability.** When there's no overnight HRV (the watch wasn't worn to bed), the
+daytime SDNN reading is used. Its z-score is multiplied by `fallbackReliability` (0.75) first,
+because daytime readings are affected by activity and posture, so the same deviation is weaker
+evidence.
+
 ### 4.2 Resting heart rate — weight 15 %
-`z = −(value − median) / spread`: lower than usual is better. Elevated sleeping HR is one of the
+`z = −(value − median) / spread`: lower than usual is better. When sleep isn't tracked, Apple's
+daily resting-heart-rate estimate is used instead, with the same 0.75 reliability factor. It varies
+much more day to day (partial wear, active days), and without the discount ordinary noise
+repeatedly triggered the limiting-factor cap. Elevated sleeping HR is one of the
 most reliable early markers of illness, heat stress, alcohol or accumulated fatigue.
 
 ### 4.3 Sleep — weight 25 %
@@ -207,15 +215,36 @@ score over months of realistic demo data is **7**, which guards against drift to
 4. **Bands** (identical to Apple's Readiness): Recover 0–1 · Pace Yourself 2–4 · Ready 5–7 · Go For It 8–10.
 
 **Confidence** = (share of model weight with data) × baseline maturity, where maturity goes from
-0.5 with no history to 1.0 at 28 nights.
+0.5 with no history to 1.0 at 28 days.
 
-## 6. Every score is reproducible
+**Calibrating** is shown while fewer than 7 of the last 60 days have a recovery signal (HRV or
+resting heart rate). This deliberately doesn't require tracked sleep. People who don't wear the
+watch to bed still build a baseline, and the score says which fallback signals it used.
+
+## 6. Validating on real data
+
+`openreadiness-cli` runs the engine on a Health app export (see the README). Real exports surfaced
+three issues that synthetic data never did, all fixed with tests:
+
+1. **Beat timestamps use U+202F.** Recent iOS exports write `9:41:23.45 AM` with a narrow
+   no-break space, which broke beat parsing and so RMSSD.
+2. **"Calibrating" depended on sleep.** People who rarely wear the watch to bed were "calibrating"
+   forever despite months of HRV history. It now depends on the recovery baselines actually used.
+3. **Fallback signals were over-trusted.** Daytime HRV and Apple's resting HR were treated like
+   overnight measures, so ordinary noise repeatedly capped scores. Hence the 0.75 reliability factor.
+
+Changes are checked against the model's intent (an ordinary day for you ≈ 7, genuine multi-signal
+anomalies still flagged). They are deliberately **not** fitted to any individual export: with a
+sample of one, tuning further would be overfitting. Validation across more people's exports is the
+best way to improve the constants. See CONTRIBUTING.md.
+
+## 7. Every score is reproducible
 
 The engine is a pure function of `(RawHealthData, configuration, calendar, now)`. Historical scores
 only look *backwards*, so a score for any past day is exactly what you would have seen that morning.
 This is covered by unit tests (`swift test` in `Packages/ReadinessKit`).
 
-## 7. Known limitations
+## 8. Known limitations
 
 - **Short recordings.** Each Apple Watch HRV reading covers about a minute of beats, and older
   watches take only a few per night. RMSSD from short windows is still noisy, which geometric

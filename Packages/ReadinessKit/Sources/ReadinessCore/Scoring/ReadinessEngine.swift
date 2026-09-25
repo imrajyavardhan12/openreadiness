@@ -55,7 +55,13 @@ public struct ReadinessEngine: Sendable {
         let score = Int((raw / 10).rounded()).clamped(to: 0...10)
         let category = ReadinessCategory(score: score)
 
-        let baselineNights = ctx.previous(configuration.baselineWindowDays).filter { $0.sleep != nil }.count
+        // Baseline maturity: days in the window with the recovery signals scoring relies on (HRV or
+        // resting heart rate). Counting only tracked sleep would leave people who don't wear the
+        // watch to bed "calibrating" forever, even with months of solid HRV history.
+        let baselineNights = ctx.previous(configuration.baselineWindowDays).filter {
+            $0.rmssdOvernight != nil || $0.hrvOvernight != nil || $0.hrvAllDay != nil
+                || $0.sleepingHeartRate != nil || $0.appleRestingHeartRate != nil
+        }.count
         let maturity = min(1, 0.5 + 0.5 * Double(baselineNights) / 28)
         let confidence = (presentWeight / totalWeight) * maturity
 

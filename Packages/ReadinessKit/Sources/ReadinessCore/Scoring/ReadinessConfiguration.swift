@@ -32,6 +32,11 @@ public struct ReadinessConfiguration: Sendable, Hashable, Codable {
 
     public var maxHeartRateOverride: Double?
 
+    /// Deviations measured with fallback signals (daytime HRV, Apple's daily resting heart rate) are
+    /// multiplied by this before scoring. Those readings are noisier than overnight ones — affected
+    /// by activity and partial wear — so the same z-score is weaker evidence.
+    public var fallbackReliability: Double
+
     public init(
         weights: [ContributorKind: Double] = Self.defaultWeights,
         baselineWindowDays: Int = 60,
@@ -44,7 +49,8 @@ public struct ReadinessConfiguration: Sendable, Hashable, Codable {
         limitingFactorThreshold: Double = 30,
         limitingFactorHeadroom: Double = 35,
         limitingFactorKinds: Set<ContributorKind> = [.hrv, .restingHeartRate, .sleep, .vitals],
-        maxHeartRateOverride: Double? = nil
+        maxHeartRateOverride: Double? = nil,
+        fallbackReliability: Double = 0.75
     ) {
         self.weights = weights
         self.baselineWindowDays = baselineWindowDays
@@ -58,6 +64,7 @@ public struct ReadinessConfiguration: Sendable, Hashable, Codable {
         self.limitingFactorHeadroom = limitingFactorHeadroom
         self.limitingFactorKinds = limitingFactorKinds
         self.maxHeartRateOverride = maxHeartRateOverride
+        self.fallbackReliability = fallbackReliability
     }
 
     public static let defaultWeights: [ContributorKind: Double] = [
