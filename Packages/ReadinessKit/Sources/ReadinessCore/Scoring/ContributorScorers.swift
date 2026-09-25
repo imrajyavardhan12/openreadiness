@@ -37,9 +37,11 @@ enum HRVScorer {
     static let minimumLogSpread = 0.08
 
     static func score(_ ctx: ScoringContext) -> Contributor? {
+        // Most to least preferred. Each flavour is only ever compared with its own baseline.
         let flavours: [(KeyPath<DayMetrics, Double?>, String)] = [
-            (\.hrvOvernight, "overnight"),
-            (\.hrvAllDay, "last 24 h"),
+            (\.rmssdOvernight, "overnight RMSSD"),
+            (\.hrvOvernight, "overnight SDNN"),
+            (\.hrvAllDay, "SDNN, last 24 h"),
         ]
         for (metric, label) in flavours {
             guard let value = ctx.today[keyPath: metric], value > 0,

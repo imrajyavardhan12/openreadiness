@@ -94,7 +94,7 @@ public enum ContributorKind: String, Sendable, Codable, CaseIterable, Identifiab
     public var explanation: String {
         switch self {
         case .hrv:
-            "Heart rate variability reflects how much your nervous system is in 'rest and recover' mode. Higher than your own normal is generally a good sign; a sustained drop often follows hard training, poor sleep, alcohol, stress or illness. Apple Watch records SDNN, which is compared on a log scale against your last 60 days."
+            "Heart rate variability reflects how much your nervous system is in 'rest and recover' mode. Higher than your own normal is generally a good sign; a sustained drop often follows hard training, poor sleep, alcohol, stress or illness. OpenReadiness computes RMSSD from your watch's beat-to-beat data (the measure used in research and by Oura and Whoop), falling back to Apple's SDNN, and compares it on a log scale against your last 60 days."
         case .restingHeartRate:
             "Your lowest sustained heart rate during sleep. When your body is fighting fatigue, heat, alcohol or illness it usually sits a few beats higher than normal."
         case .sleep:

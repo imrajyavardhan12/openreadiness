@@ -153,7 +153,8 @@ public struct ReadinessAnalysis: Sendable {
         )
 
         let keyPath: KeyPath<DayMetrics, Double?>? = switch metric {
-        case .hrv: preferredFlavour(\.hrvOvernight, \.hrvAllDay, in: range)
+        case .hrv:
+            preferredFlavour(\.rmssdOvernight, preferredFlavour(\.hrvOvernight, \.hrvAllDay, in: range), in: range)
         case .restingHeartRate: preferredFlavour(\.sleepingHeartRate, \.appleRestingHeartRate, in: range)
         case .sleepDuration: \.sleepHours
         case .respiratoryRate: \.respiratoryRate

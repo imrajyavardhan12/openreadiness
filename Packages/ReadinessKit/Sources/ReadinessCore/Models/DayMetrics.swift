@@ -52,6 +52,8 @@ public struct SleepSummary: Sendable, Hashable, Codable {
 public struct DayMetrics: Sendable, Hashable, Codable, Identifiable {
     public var day: Date
     public var sleep: SleepSummary?
+    /// Geometric mean of RMSSD (from beat-to-beat data) during the main sleep (ms). Preferred when available.
+    public var rmssdOvernight: Double?
     /// Geometric mean of SDNN readings taken during the main sleep (ms).
     public var hrvOvernight: Double?
     /// Geometric mean of SDNN readings from the previous day through this morning (ms). Fallback only.
@@ -73,6 +75,7 @@ public struct DayMetrics: Sendable, Hashable, Codable, Identifiable {
     public init(
         day: Date,
         sleep: SleepSummary? = nil,
+        rmssdOvernight: Double? = nil,
         hrvOvernight: Double? = nil,
         hrvAllDay: Double? = nil,
         sleepingHeartRate: Double? = nil,
@@ -86,6 +89,7 @@ public struct DayMetrics: Sendable, Hashable, Codable, Identifiable {
     ) {
         self.day = day
         self.sleep = sleep
+        self.rmssdOvernight = rmssdOvernight
         self.hrvOvernight = hrvOvernight
         self.hrvAllDay = hrvAllDay
         self.sleepingHeartRate = sleepingHeartRate
@@ -98,7 +102,7 @@ public struct DayMetrics: Sendable, Hashable, Codable, Identifiable {
         self.activeEnergy = activeEnergy
     }
 
-    /// Best available HRV for display.
+    /// Best available SDNN-based HRV for display.
     public var hrv: Double? { hrvOvernight ?? hrvAllDay }
     /// Best available resting heart rate for display.
     public var restingHeartRate: Double? { sleepingHeartRate ?? appleRestingHeartRate }

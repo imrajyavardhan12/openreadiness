@@ -16,6 +16,9 @@ OpenReadiness is built so that your health data never leaves your devices.
   whether sample data is on) and, for widgets and complications, today's score summary. That
   summary is the score, its contributor headlines and the last 7 scores. It lives in the app's
   private App Group container on your device, readable only by OpenReadiness and its own widgets.
+  There is also a cache of the HRV (RMSSD) values computed from each overnight heartbeat recording:
+  derived numbers only, never raw heartbeats. It is kept in the app's private container with iOS
+  file protection and pruned after 200 days.
 - **Watch sync.** The iPhone sends today's score, its contributors and the last 7 scores to your own
   paired Apple Watch through Apple's WatchConnectivity framework.
 - **Control.** Change or revoke access at any time in *Settings › Health › Data Access & Devices ›

@@ -65,6 +65,8 @@ public struct DemoDataSource: HealthDataSource {
             for i in 0..<Int(rng.uniform(3, 6)) {
                 let t = sleepStart.addingTimeInterval(Double(i) * sleepHours * 3600 / 5 + 1200)
                 data.hrv.append(TimedValue(date: t, value: max(12, hrvMean * exp(rng.normal(mean: 0, sd: 0.18)))))
+                // RMSSD from the same reading's beat-to-beat data: tracks recovery a little more tightly.
+                data.rmssd.append(TimedValue(date: t, value: max(10, hrvMean * 1.08 * exp(rng.normal(mean: 0, sd: 0.13)))))
             }
             for hour in [10, 14, 17] where daysAgo > 0 {
                 let t = calendar.date(byAdding: .hour, value: hour, to: day)!
@@ -174,6 +176,7 @@ extension RawHealthData {
         var copy = self
         copy.sleep = sleep.filter { $0.start >= date }
         copy.hrv = hrv.filter { $0.date >= date }
+        copy.rmssd = rmssd.filter { $0.date >= date }
         copy.heartRateBuckets = heartRateBuckets.filter { $0.date >= date }
         copy.restingHeartRate = restingHeartRate.filter { $0.date >= date }
         copy.respiratoryRate = respiratoryRate.filter { $0.date >= date }

@@ -68,7 +68,7 @@ Reference lines are shown only where there's solid evidence, each with its sourc
 
 | Contributor | Weight | What it measures |
 |---|---|---|
-| Heart rate variability | 30 % | Overnight SDNN vs. your 60-day normal (log scale), blended with 7-day trend |
+| Heart rate variability | 30 % | Overnight RMSSD from beat-to-beat data (SDNN fallback) vs. your 60-day normal (log scale), blended with 7-day trend |
 | Sleep | 25 % | Sleep score (duration 50 · bedtime consistency 30 · interruptions 20) + sleep debt |
 | Training load | 20 % | Last 7 days vs. prior 3 weeks (session-RPE: minutes × effort) |
 | Resting heart rate | 15 % | Lowest 30-min average while asleep vs. your normal |
@@ -132,7 +132,7 @@ Oura, Whoop and Garmin is in [docs/RESEARCH.md](docs/RESEARCH.md).
 ## Roadmap
 
 - [x] Watch-face complications and Home/Lock Screen widgets (WidgetKit) with background refresh
-- [ ] RMSSD from beat-to-beat `HKHeartbeatSeriesSample` data (more sensitive than SDNN)
+- [x] RMSSD from beat-to-beat `HKHeartbeatSeriesSample` data (more sensitive than SDNN)
 - [ ] Intraday updates (naps, daytime heart rate), as Apple does
 - [ ] Menstrual-cycle-aware temperature and resting-HR baselines
 - [ ] Localisation (String Catalogs are enabled)

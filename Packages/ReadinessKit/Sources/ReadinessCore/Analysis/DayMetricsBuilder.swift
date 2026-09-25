@@ -16,6 +16,7 @@ public struct DayMetricsBuilder: Sendable {
     public func build(from raw: RawHealthData, firstDay: Date, lastDay: Date) -> [DayMetrics] {
         let sleepAnalyzer = SleepAnalyzer(calendar: calendar)
         let hrv = SortedSeries(raw.hrv)
+        let rmssd = SortedSeries(raw.rmssd)
         let heartRate = SortedSeries(raw.heartRateBuckets)
         let resting = SortedSeries(raw.restingHeartRate)
         let respiratory = SortedSeries(raw.respiratoryRate)
@@ -52,6 +53,7 @@ public struct DayMetricsBuilder: Sendable {
             if let sleep {
                 let asleep = DateInterval(start: sleep.start, end: sleep.end)
                 metrics.hrvOvernight = Stats.geometricMean(hrv.values(in: asleep))
+                metrics.rmssdOvernight = Stats.geometricMean(rmssd.values(in: asleep))
                 let buckets = heartRate.values(in: asleep)
                 if buckets.count >= minimumSleepingHeartRateBuckets {
                     metrics.sleepingHeartRate = buckets.min()

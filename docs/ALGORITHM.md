@@ -19,7 +19,8 @@ signals need newer hardware, noted below). The app never writes to Health.
 | Signal | HealthKit type | Notes |
 |---|---|---|
 | Sleep & stages | `sleepAnalysis` | Stages on watchOS 9+; older data is "asleep (unspecified)" |
-| HRV | `heartRateVariabilitySDNN` | Apple Watch records SDNN (not RMSSD) several times a day and during sleep |
+| HRV (SDNN) | `heartRateVariabilitySDNN` | Apple's HRV reading, taken several times a day and during sleep |
+| HRV (RMSSD) | `HKHeartbeatSeriesSample` | Beat-to-beat timestamps behind each HRV reading; RMSSD computed here (§2.1) |
 | Heart rate | `heartRate` | Read as 30-minute averages via a statistics query |
 | Resting HR | `restingHeartRate` | Apple's daily estimate, used only as a fallback |
 | Respiratory rate | `respiratoryRate` | Measured during sleep |
@@ -43,13 +44,36 @@ A "day" is the calendar day you **woke up** on. For each day
   sleep counts as a nap and is ignored. When several apps or devices recorded the night, the one
   source with the most sleep is used, and sources with stage data are preferred, so the night isn't
   double counted. Gaps of 3 minutes or more between asleep blocks count as interruptions.
-- **Overnight HRV:** geometric mean of SDNN readings taken during the main sleep. The *all-day*
-  fallback uses readings from the previous day through 10:00 this morning.
+- **Overnight HRV:** the geometric mean of the RMSSD values computed during the main sleep (§2.1),
+  plus the same for Apple's SDNN readings. The *all-day* SDNN fallback uses readings from the
+  previous day through 10:00 this morning.
 - **Sleeping heart rate:** the lowest 30-minute average during sleep (needs at least 4 buckets).
   This is closer to what Oura and Whoop use than Apple's daytime resting-HR estimate. Apple's value
   is the fallback.
 - **Vitals:** median respiratory rate and SpO₂ during sleep (±30 min), and the night's wrist temperature.
 - **Training load:** see §4.4.
+
+### 2.1 RMSSD from beat-to-beat data
+
+Apple Watch only reports SDNN, but every HRV reading also stores the timestamp of each heartbeat
+behind it (an `HKHeartbeatSeriesSample`, roughly one minute of beats). From those timestamps we
+compute **RMSSD**, the root mean square of successive differences between beat-to-beat (RR)
+intervals. It's the measure used in most HRV research and by Oura and Whoop. It mainly reflects
+parasympathetic ("rest and digest") activity and is less affected than SDNN by slow drifts within
+a short recording, which makes it the better recovery signal.
+
+[`RMSSD.compute`](../Packages/ReadinessKit/Sources/ReadinessCore/Analysis/RMSSD.swift):
+
+1. RR intervals come from consecutive beats. A beat flagged `precededByGap` (the watch lost
+   contact) breaks the sequence instead of producing a false long interval.
+2. Intervals outside 300–2000 ms (30–200 bpm) are rejected as implausible.
+3. A successive difference is used only when both intervals are valid and differ by at most 20%.
+   This is the standard rule for excluding ectopic beats and detection artifacts.
+4. RMSSD = √(mean of squared successive differences). At least 20 clean differences are required,
+   otherwise the reading is discarded.
+
+Only series starting between 20:00 and 11:00 are read. The per-series results are cached on
+device (see PRIVACY.md), because a recorded series never changes.
 
 Overnight and all-day HRV (and sleeping vs. Apple resting HR) are kept separate. A day is always
 compared with a baseline built from the *same* flavour, so one kind of reading is never scored
@@ -88,6 +112,9 @@ Scoring **70 at exactly your baseline** is deliberate: an ordinary day for you s
 *Ready*, not in the middle of the scale.
 
 ### 4.1 HRV — weight 30 %
+The first flavour that has both a value tonight and its own ≥ 7-night baseline is used, in this
+order: **overnight RMSSD → overnight SDNN → last-24-h SDNN**. Flavours are never mixed within a
+comparison.
 `z = 0.7 · z(last night) + 0.3 · z(7-day geometric mean)` on the ln scale. Blending in the week
 follows Oura's "HRV balance" idea and damps single-night noise. Higher is better.
 
@@ -190,9 +217,10 @@ This is covered by unit tests (`swift test` in `Packages/ReadinessKit`).
 
 ## 7. Known limitations
 
-- **SDNN vs RMSSD.** Apple exposes SDNN from short readings. It is noisier than the RMSSD that most
-  research and Whoop/Oura use. Log-scaling, geometric means and the 7-day blend mitigate this.
-  (Future: compute RMSSD from `HKHeartbeatSeriesSample` beat-to-beat data.)
+- **Short recordings.** Each Apple Watch HRV reading covers about a minute of beats, and older
+  watches take only a few per night. RMSSD from short windows is still noisy, which geometric
+  means, log-scaling and the 7-day blend mitigate. Whoop and Oura, by contrast, sample
+  continuously during deep sleep.
 - **Reading frequency.** Older watches take HRV readings only a few times a night, and more
   readings improve accuracy. Series 12's Health Sensing System samples far more often, which is
   one reason Apple limits Readiness to it.

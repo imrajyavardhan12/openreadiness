@@ -28,6 +28,7 @@ public final class HealthKitDataSource: HealthDataSource, @unchecked Sendable {
             HKQuantityType(.activeEnergyBurned),
             HKObjectType.workoutType(),
             HKCharacteristicType(.dateOfBirth),
+            HKSeriesType.heartbeat(),
         ]
         if #available(iOS 18.0, watchOS 11.0, macOS 15.0, *) {
             types.insert(HKQuantityType(.workoutEffortScore))
@@ -57,6 +58,7 @@ public final class HealthKitDataSource: HealthDataSource, @unchecked Sendable {
 
         async let sleep = sleepSegments(range)
         async let hrv = quantities(.heartRateVariabilitySDNN, unit: .secondUnit(with: .milli), range)
+        async let rmssd = rmssdReadings(range)
         async let heartRate = heartRateBuckets(from: start, to: end)
         async let resting = quantities(.restingHeartRate, unit: .beatsPerMinute, range)
         async let respiratory = quantities(.respiratoryRate, unit: .perMinute, range)
@@ -68,6 +70,7 @@ public final class HealthKitDataSource: HealthDataSource, @unchecked Sendable {
         return try await RawHealthData(
             sleep: sleep,
             hrv: hrv,
+            rmssd: rmssd,
             heartRateBuckets: heartRate,
             restingHeartRate: resting,
             respiratoryRate: respiratory,
@@ -141,6 +144,72 @@ public final class HealthKitDataSource: HealthDataSource, @unchecked Sendable {
                 stage: stage,
                 sourceID: sample.sourceRevision.source.bundleIdentifier
             )
+        }
+    }
+
+    /// RMSSD for each overnight heartbeat series (the beat-to-beat data behind Apple's HRV readings).
+    ///
+    /// Best effort: if heartbeat data is unavailable or declined, readiness falls back to SDNN, so
+    /// failures here return what could be computed rather than failing the whole refresh.
+    private func rmssdReadings(_ range: DateInterval) async -> [TimedValue] {
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [.heartbeatSeries(Self.predicate(range))],
+            sortDescriptors: [SortDescriptor(\.startDate)]
+        )
+        guard let series = try? await descriptor.result(for: store) else { return [] }
+
+        // Only readings that could fall within a night's sleep are scored as "overnight".
+        let calendar = Calendar.current
+        let overnight = series.filter {
+            let hour = calendar.component(.hour, from: $0.startDate)
+            return hour >= 20 || hour < 11
+        }
+
+        let cache = RMSSDCache.shared
+        var readings: [TimedValue] = []
+        var uncached: [HKHeartbeatSeriesSample] = []
+        for sample in overnight {
+            if let entry = await cache.entry(for: sample.uuid) {
+                if let value = entry.rmssd { readings.append(TimedValue(date: sample.startDate, value: value)) }
+            } else {
+                uncached.append(sample)
+            }
+        }
+
+        // Read uncached series a few at a time: enough parallelism to be quick, without flooding HealthKit.
+        let batchSize = 8
+        for start in stride(from: 0, to: uncached.count, by: batchSize) {
+            let batch = uncached[start..<min(start + batchSize, uncached.count)]
+            let computed = await withTaskGroup(of: (UUID, Date, Double?)?.self) { group in
+                for sample in batch {
+                    group.addTask { await self.rmssd(for: sample) }
+                }
+                var results: [(UUID, Date, Double?)] = []
+                for await result in group {
+                    if let result { results.append(result) }
+                }
+                return results
+            }
+            for (id, date, value) in computed {
+                await cache.store(RMSSDCache.Entry(date: date, rmssd: value), for: id)
+                if let value { readings.append(TimedValue(date: date, value: value)) }
+            }
+        }
+        await cache.persist()
+        return readings.sorted { $0.date < $1.date }
+    }
+
+    /// nil when the series couldn't be read (so it's retried next time); a nil RMSSD when it was
+    /// read but had too few clean beats.
+    private func rmssd(for sample: HKHeartbeatSeriesSample) async -> (UUID, Date, Double?)? {
+        do {
+            var beats: [Heartbeat] = []
+            for try await beat in HKHeartbeatSeriesQueryDescriptor(sample).results(for: store) {
+                beats.append(Heartbeat(time: beat.timeIntervalSinceStart, precededByGap: beat.precededByGap))
+            }
+            return (sample.uuid, sample.startDate, RMSSD.compute(beats))
+        } catch {
+            return nil
         }
     }
 
