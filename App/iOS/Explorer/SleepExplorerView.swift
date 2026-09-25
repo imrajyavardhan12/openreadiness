@@ -19,31 +19,35 @@ struct SleepExplorerView: View {
                 }
                 .pickerStyle(.segmented)
 
-                if let schedule {
-                    Card(title: "Sleep schedule", systemImage: "clock") {
-                        VStack(alignment: .leading, spacing: 12) {
-                            SleepScheduleChart(analysis: schedule)
-                            HStack(spacing: 14) {
-                                Label("Weeknights", systemImage: "square.fill").labelStyle(LegendLabelStyle(color: .indigo))
-                                Label("Weekend nights", systemImage: "square.fill").labelStyle(LegendLabelStyle(color: .purple.opacity(0.5)))
-                                Label("Median", systemImage: "line.diagonal").labelStyle(LegendLabelStyle(color: .secondary))
+                if days.allSatisfy({ $0.sleep == nil }) {
+                    NoRecentSleepCard(lastNight: readiness.analysis.allDaysLastSleep)
+                } else {
+                    if let schedule {
+                        Card(title: "Sleep schedule", systemImage: "clock") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                SleepScheduleChart(analysis: schedule)
+                                HStack(spacing: 14) {
+                                    Label("Weeknights", systemImage: "square.fill").labelStyle(LegendLabelStyle(color: .indigo))
+                                    Label("Weekend nights", systemImage: "square.fill").labelStyle(LegendLabelStyle(color: .purple.opacity(0.5)))
+                                    Label("Median", systemImage: "line.diagonal").labelStyle(LegendLabelStyle(color: .secondary))
+                                }
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
                             }
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
                         }
+                        ScheduleStatsCard(analysis: schedule)
                     }
-                    ScheduleStatsCard(analysis: schedule)
+
+                    TrendCard(metric: .sleepDuration, points: readiness.analysis.trend(.sleepDuration, lastDays: range.days))
+
+                    Card(title: "Stages by night", systemImage: "chart.bar.xaxis") {
+                        SleepHistoryChart(days: Array(days.suffix(min(range.days, 30))), goalHours: readiness.sleepGoalHours)
+                    }
+
+                    StageAveragesCard(days: days)
+
+                    TrendCard(metric: .sleepScore, points: readiness.analysis.trend(.sleepScore, lastDays: range.days))
                 }
-
-                TrendCard(metric: .sleepDuration, points: readiness.analysis.trend(.sleepDuration, lastDays: range.days))
-
-                Card(title: "Stages by night", systemImage: "chart.bar.xaxis") {
-                    SleepHistoryChart(days: Array(days.suffix(min(range.days, 30))), goalHours: readiness.sleepGoalHours)
-                }
-
-                StageAveragesCard(days: days)
-
-                TrendCard(metric: .sleepScore, points: readiness.analysis.trend(.sleepScore, lastDays: range.days))
 
                 Card(title: "About sleep timing", systemImage: "book") {
                     Text("Going to bed and waking at consistent times is linked to better health, independent of how long you sleep. 'Social jetlag' is how much later your sleep shifts on weekends — like flying a time zone west every Friday and back every Monday.")
@@ -56,6 +60,26 @@ struct SleepExplorerView: View {
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Sleep")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Explains an empty period instead of showing blank charts.
+private struct NoRecentSleepCard: View {
+    let lastNight: Date?
+
+    var body: some View {
+        Card(title: "No sleep in this period", systemImage: "moon.zzz") {
+            VStack(alignment: .leading, spacing: 8) {
+                if let lastNight {
+                    Text("Your most recent tracked night was \(lastNight.formatted(date: .long, time: .omitted)).")
+                        .font(.subheadline.weight(.semibold))
+                }
+                Text("Sleep is the richest readiness signal: it adds overnight HRV, sleeping heart rate and overnight vitals. Turn on Sleep in the Health app (Browse › Sleep › Get Started) and wear your Apple Watch to bed.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 }
 

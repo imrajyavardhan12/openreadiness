@@ -112,9 +112,21 @@ cd Packages/ReadinessKit && swift test
 
 UI walkthrough, which also generates screenshots of every screen: press **⌘U** in Xcode.
 
-## Try the score on your own data (no developer account needed)
+## Try it on your own data (no developer account needed)
 
-The Health app can export everything it stores (**Health → your profile picture → Export All Health
+**In the app (Simulator or device):** go to *About › Data source › Import Health export…* and choose
+`export.xml`. Every screen then shows your real history, including the score, charts, insights and
+workouts. In the Simulator you can also pass the path directly as a launch argument (debug builds
+only):
+
+```
+-importHealthExport /Users/you/Downloads/apple_health_export/export.xml
+```
+
+The export is parsed once, kept as a single protected file on the device, and can be removed at any
+time. Widgets and the watch keep showing live data, not the import.
+
+**From the command line:** the Health app can export everything it stores (**Health → your profile picture → Export All Health
 Data**). Unzip the export on your Mac and run:
 
 ```bash

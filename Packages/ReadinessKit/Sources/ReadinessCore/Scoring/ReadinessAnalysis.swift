@@ -137,6 +137,11 @@ public struct ReadinessAnalysis: Sendable {
         days.compactMap { scores[$0.day] }
     }
 
+    /// Wake day of the most recent tracked sleep, including the lookback period.
+    public var allDaysLastSleep: Date? {
+        allDays.last { $0.sleep != nil }?.day
+    }
+
     public func metrics(for day: Date) -> DayMetrics? {
         let start = calendar.startOfDay(for: day)
         return allDays.first { $0.day == start }

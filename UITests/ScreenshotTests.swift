@@ -9,7 +9,11 @@ final class ScreenshotTests: XCTestCase {
 
     override func setUp() async throws {
         continueAfterFailure = false
-        app.launchArguments = ["-demo"]
+        // Screenshots use sample data by default. For local review against data already loaded in the
+        // Simulator (e.g. an imported export), run with TEST_RUNNER_UITEST_USE_STORED_DATA=1.
+        // Those screenshots are personal: never commit them.
+        let useStoredData = ProcessInfo.processInfo.environment["UITEST_USE_STORED_DATA"] == "1"
+        app.launchArguments = useStoredData ? [] : ["-demo"]
         app.launch()
     }
 
@@ -59,7 +63,8 @@ final class ScreenshotTests: XCTestCase {
                       app.staticTexts["MINUTES PER WEEK"].exists)
         settle()
         snap("20-workouts")
-        visibleButton(containing: "Running").tap()
+        // Any workout row (rows read "Activity, day · duration …").
+        visibleButton(containing: " · ").tap()
         settle(2)
         snap("21-workout-detail")
         app.swipeUp()

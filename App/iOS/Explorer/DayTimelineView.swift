@@ -24,7 +24,7 @@ struct DayTimelineView: View {
                     Text(day.formatted(.dateTime.weekday(.wide).day().month(.wide))).font(.headline)
                     Spacer()
                     Button { shift(1) } label: { Image(systemName: "chevron.right").padding(8) }
-                        .disabled(calendar.isDateInToday(day))
+                        .disabled(day >= calendar.startOfDay(for: explorer.currentDate))
                         .accessibilityLabel("Next day")
                 }
                 .buttonStyle(.bordered)
@@ -32,6 +32,12 @@ struct DayTimelineView: View {
 
                 if let data {
                     Card(title: "Heart rate", systemImage: "heart.fill") {
+                        if data.heartRate.isEmpty {
+                            Text("No heart-rate readings on this day. Your watch records heart rate while you wear it.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, minHeight: 80)
+                        } else {
                         VStack(alignment: .leading, spacing: 10) {
                             heartSummary(data)
                             HeartTimelineChart(data: data, start: day, end: dayEnd)
@@ -42,6 +48,7 @@ struct DayTimelineView: View {
                             }
                             .font(.caption2)
                             .foregroundStyle(.secondary)
+                        }
                         }
                     }
                     Card(title: "Steps by hour", systemImage: "shoeprints.fill") {
@@ -71,6 +78,11 @@ struct DayTimelineView: View {
         .navigationTitle("Timeline")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: WorkoutSummary.self) { WorkoutDetailView(workout: $0) }
+        .onAppear {
+            // Imported data ends at the export date; open on that day rather than an empty "today".
+            let latest = calendar.startOfDay(for: explorer.currentDate)
+            if day > latest { day = latest }
+        }
         .task(id: day) {
             data = nil
             errorMessage = nil

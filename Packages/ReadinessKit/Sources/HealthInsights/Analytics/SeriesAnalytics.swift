@@ -71,6 +71,24 @@ public enum SeriesAnalytics {
         .sorted { $0.date < $1.date }
     }
 
+    /// Daily values from hourly buckets: the day's value is the mean of its hourly means (a
+    /// time-weighted average), with the true minimum and maximum.
+    ///
+    /// Heart rate is sampled every few seconds during workouts but only every few minutes otherwise,
+    /// so a plain mean of samples is dominated by workouts. Averaging hours first fixes that.
+    public static func dailyFromHourly(_ hourly: [DailyValue], calendar: Calendar) -> [DailyValue] {
+        Dictionary(grouping: hourly) { calendar.startOfDay(for: $0.date) }
+            .map { day, hours in
+                DailyValue(
+                    date: day,
+                    value: Stats.mean(hours.map(\.value)) ?? 0,
+                    min: hours.compactMap(\.min).min(),
+                    max: hours.compactMap(\.max).max()
+                )
+            }
+            .sorted { $0.date < $1.date }
+    }
+
     /// Trailing mean over `window` calendar days, emitted only where at least half the window has data.
     public static func rollingMean(_ values: [DailyValue], window: Int, calendar: Calendar) -> [TimedValue] {
         let byDay = Dictionary(values.map { (calendar.startOfDay(for: $0.date), $0.value) }, uniquingKeysWith: { a, _ in a })

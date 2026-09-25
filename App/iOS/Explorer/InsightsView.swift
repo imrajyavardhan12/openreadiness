@@ -65,7 +65,7 @@ struct InsightsView: View {
     private func buildSeries() -> [InsightVariable: [Date: Double]] {
         let calendar = Calendar.current
         var result: [InsightVariable: [Date: Double]] = [:]
-        for metric in [HealthMetric.steps, .exerciseTime, .activeEnergy, .timeInDaylight, .restingHeartRate, .standTime] {
+        for metric in [HealthMetric.steps, .exerciseTime, .activeEnergy, .timeInDaylight, .restingHeartRate, .standTime, .hrv] {
             let values = explorer.values(metric, lastDays: 91)
             if !values.isEmpty {
                 // Today's totals are partial, so leave them out.
@@ -171,8 +171,18 @@ private struct CorrelationExplorer: View {
             }
         }
         .onAppear {
-            if series[x] == nil, let first = variables.first { x = first }
-            if series[y] == nil, let last = variables.last { y = last }
+            // Start on a meaningful question the data can answer, not an arbitrary (or trivially
+            // related) pair: sleep → overnight HRV if sleep is tracked, else training → next-day HRV.
+            let preferred: [(InsightVariable, InsightVariable, Int)] = [
+                (.sleepDuration, .overnightHRV, 0),
+                (.trainingLoad, .metric(.hrv), 1),
+                (.trainingLoad, .metric(.restingHeartRate), 1),
+            ]
+            if let pair = preferred.first(where: { (series[$0.0]?.count ?? 0) >= 14 && (series[$0.1]?.count ?? 0) >= 14 }) {
+                (x, y, lag) = pair
+            } else if let first = variables.first, let last = variables.last {
+                (x, y) = (first, last)
+            }
         }
     }
 }

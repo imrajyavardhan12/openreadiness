@@ -90,7 +90,8 @@ public final class HealthKitMetricsProvider: HealthMetricsProvider, @unchecked S
             ),
             options: options,
             anchorDate: calendar.startOfDay(for: interval.start),
-            intervalComponents: DateComponents(day: 1)
+            // Range metrics (heart rate) are read hourly, then combined into a time-weighted daily average.
+            intervalComponents: metric.aggregation == .range ? DateComponents(hour: 1) : DateComponents(day: 1)
         )
         let collection = try await descriptor.result(for: store)
         var values: [DailyValue] = []
@@ -104,7 +105,7 @@ public final class HealthKitMetricsProvider: HealthMetricsProvider, @unchecked S
                 max: statistics.maximumQuantity().map { $0.doubleValue(for: mapping.unit) * mapping.scale }
             ))
         }
-        return values
+        return metric.aggregation == .range ? SeriesAnalytics.dailyFromHourly(values, calendar: calendar) : values
     }
 
     // MARK: - Activity rings

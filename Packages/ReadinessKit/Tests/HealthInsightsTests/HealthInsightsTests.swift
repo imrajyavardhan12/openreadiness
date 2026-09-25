@@ -218,3 +218,24 @@ enum Fixture {
         #expect(lines.allSatisfy { $0.components(separatedBy: ",").count == columns })
     }
 }
+
+@Suite struct HourlyRollupTests {
+    @Test func dailyAverageIsTimeWeighted() throws {
+        let calendar = Fixture.calendar
+        let day = Fixture.day(-1)
+        // 22 quiet hours at 60 bpm and 2 workout hours at 150 bpm. Sampling density doesn't matter:
+        // each hour counts once, so the day averages (22×60 + 2×150) / 24 = 67.5.
+        let hourly = (0..<24).map { hour in
+            DailyValue(
+                date: calendar.date(byAdding: .hour, value: hour, to: day)!,
+                value: hour == 18 || hour == 19 ? 150 : 60,
+                min: hour == 3 ? 48 : 55,
+                max: hour == 18 ? 172 : 90
+            )
+        }
+        let daily = try #require(SeriesAnalytics.dailyFromHourly(hourly, calendar: calendar).first)
+        #expect(daily.value == 67.5)
+        #expect(daily.min == 48)
+        #expect(daily.max == 172)
+    }
+}

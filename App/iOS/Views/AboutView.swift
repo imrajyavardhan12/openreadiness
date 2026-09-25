@@ -5,6 +5,9 @@ import SwiftUI
 struct AboutView: View {
     @Environment(ReadinessStore.self) private var store
     @Environment(ExplorerStore.self) private var explorer
+    @Environment(ImportController.self) private var importer
+    @State private var showsImporter = false
+    @State private var confirmsRemoval = false
 
     var body: some View {
         @Bindable var store = store
@@ -13,11 +16,51 @@ struct AboutView: View {
                 Stepper(value: $store.sleepGoalHours, in: 6...10, step: 0.25) {
                     LabeledContent("Sleep goal", value: "\(Format.number(store.sleepGoalHours, digits: 2))h")
                 }
-                Toggle("Use sample data", isOn: $store.usesDemoData)
             } header: {
                 Text("Settings")
+            }
+
+            Section {
+                Picker("Show", selection: $store.dataMode) {
+                    Text("Apple Health").tag(DataMode.health)
+                    if importer.hasImport { Text("Imported export").tag(DataMode.imported) }
+                    Text("Sample data").tag(DataMode.sample)
+                }
+                if let summary = importer.summary {
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let coverage = summary.coverage {
+                            Text("Imported: \(coverage.start.formatted(date: .abbreviated, time: .omitted)) – \(coverage.end.formatted(date: .abbreviated, time: .omitted))")
+                                .font(.subheadline)
+                        }
+                        Text("\(summary.nightsOfSleep) nights of sleep · \(summary.hrvReadings) HRV readings · \(summary.workouts) workouts")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                switch importer.state {
+                case .working(let message):
+                    HStack(spacing: 10) {
+                        ProgressView()
+                        Text(message).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                case .failed(let message):
+                    Label(message, systemImage: "exclamationmark.triangle").font(.subheadline).foregroundStyle(.red)
+                case .idle:
+                    EmptyView()
+                }
+                Button {
+                    showsImporter = true
+                } label: {
+                    Label(importer.hasImport ? "Import a newer export…" : "Import Health export…", systemImage: "square.and.arrow.down")
+                }
+                .disabled(importer.state != .idle && importer.state != .failed(""))
+                if importer.hasImport {
+                    Button("Remove imported data", role: .destructive) { confirmsRemoval = true }
+                }
+            } header: {
+                Text("Data source")
             } footer: {
-                Text("Sample data lets you explore every screen without an Apple Watch. It is generated on device and never mixed with your real data.")
+                Text("Import your full history without HealthKit access: in the Health app, tap your profile picture › Export All Health Data, unzip it, and choose export.xml. The import stays on this device in a protected file and never mixes with live data. Sample data lets you explore without an Apple Watch.")
             }
 
             #if DEBUG
@@ -97,6 +140,16 @@ struct AboutView: View {
             }
         }
         .navigationTitle("About")
+        .fileImporter(isPresented: $showsImporter, allowedContentTypes: [.xml]) { result in
+            if case .success(let url) = result {
+                Task { await importer.importExport(from: url) }
+            }
+        }
+        .confirmationDialog("Remove imported data?", isPresented: $confirmsRemoval, titleVisibility: .visible) {
+            Button("Remove", role: .destructive) { importer.remove() }
+        } message: {
+            Text("This deletes the imported copy of your Health export from this device. Your Health app data isn't affected.")
+        }
     }
 }
 

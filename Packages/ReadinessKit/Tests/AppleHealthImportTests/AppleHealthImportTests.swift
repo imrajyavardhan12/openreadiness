@@ -152,3 +152,53 @@ enum ExportFixture {
         #expect(ExportTypes.activityName("HKWorkoutActivityTypeHighIntensityIntervalTraining") == "HIIT")
     }
 }
+
+@Suite struct ImportedProviderTests {
+    @Test func heartRateSamplesAndHourlySteps() throws {
+        let data = try ExportFixture.parse()
+        #expect(data.heartRateSamples.map(\.value) == [50, 54])
+        // 09:00 hour: iPhone 4000 vs Watch 3000 → 4000 (largest single source); 18:00 hour: 2500.
+        #expect(data.hourlySteps.map(\.value) == [4000, 2500])
+    }
+
+    @Test func intradayBuildsFiveMinuteBucketsSleepAndWorkouts() async throws {
+        let provider = ImportedMetricsProvider(data: try ExportFixture.parse(), calendar: ExportFixture.calendar)
+        let day = try await provider.intraday(on: try #require(ExportDates.parse("2026-09-24 12:00:00 +0000")))
+        #expect(day.heartRate.count == 2) // 02:05 and 02:10 fall in different 5-minute buckets
+        #expect(day.hourlySteps.count == 2)
+        #expect(day.sleep.count == 2)
+        #expect(day.workouts.first?.activityName == "Running")
+    }
+
+    @Test func dailyAndWorkoutQueriesRespectTheInterval() async throws {
+        let provider = ImportedMetricsProvider(data: try ExportFixture.parse(), calendar: ExportFixture.calendar)
+        let inside = DateInterval(start: try #require(ExportDates.parse("2026-09-24 00:00:00 +0000")), duration: 86_400)
+        let outside = DateInterval(start: try #require(ExportDates.parse("2026-09-26 00:00:00 +0000")), duration: 86_400)
+        #expect(try await provider.daily(.steps, in: inside).count == 1)
+        #expect(try await provider.daily(.steps, in: outside).isEmpty)
+        #expect(try await provider.workouts(in: inside).count == 1)
+        let samples = try await provider.heartRateSamples(in: inside)
+        #expect(samples.count == 2)
+    }
+
+    @Test func persistsAndReloadsIdentically() throws {
+        let data = try ExportFixture.parse()
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("import-\(UUID()).plist")
+        defer { try? ImportedDataFile.remove(at: url) }
+        try ImportedDataFile.save(data, to: url)
+        #expect(ImportedDataFile.exists(at: url))
+        let loaded = try ImportedDataFile.load(from: url)
+        #expect(loaded.raw == data.raw)
+        #expect(loaded.daily == data.daily)
+        #expect(loaded.workouts == data.workouts)
+        #expect(loaded.heartRateSamples == data.heartRateSamples)
+        try ImportedDataFile.remove(at: url)
+        #expect(!ImportedDataFile.exists(at: url))
+    }
+
+    @Test func dataSourceFeedsTheEngine() async throws {
+        let data = try ExportFixture.parse()
+        let raw = try await ImportedDataSource(data: data).fetch(from: .distantPast, to: .now)
+        #expect(raw == data.raw)
+    }
+}
